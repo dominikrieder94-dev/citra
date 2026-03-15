@@ -8,7 +8,7 @@ tasks:
     desc: Build the Android debug APK
     dir: src/android
     cmds:
-      - .\gradlew.bat :app:assembleDebug --stacktrace
+      - cmd /c gradlew.bat :app:assembleDebug --stacktrace
 
   install-debug-apk:
     desc: Install or update the built debug APK on the connected Android device

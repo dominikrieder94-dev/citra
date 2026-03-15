@@ -31,13 +31,13 @@ If the device serial changes, update `DEVICE_SERIAL` in `Taskfile.yml`.
 From `src/android`:
 
 ```powershell
-.\gradlew.bat :app:assembleDebug --stacktrace
+cmd /c gradlew.bat :app:assembleDebug --stacktrace
 ```
 
 Use `clean` only when needed:
 
 ```powershell
-.\gradlew.bat clean :app:assembleDebug --stacktrace
+cmd /c gradlew.bat clean :app:assembleDebug --stacktrace
 ```
 
 ### Install
