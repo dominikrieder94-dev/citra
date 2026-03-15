@@ -1,0 +1,4 @@
+interface:
+  display_name: "Android Device Debug"
+  short_description: "Build, deploy, and debug Citra on Android"
+  default_prompt: "Use $android-device-debugging to build, install, and debug the Android Citra fork on a connected device."
