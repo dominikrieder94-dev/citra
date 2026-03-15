@@ -1,0 +1,35 @@
+version: '3'
+
+vars:
+  DEVICE_SERIAL: R3CXB0SJ5GL
+
+tasks:
+  build-debug-apk:
+    desc: Build the Android debug APK
+    dir: src/android
+    cmds:
+      - .\gradlew.bat :app:assembleDebug --stacktrace
+
+  install-debug-apk:
+    desc: Install or update the built debug APK on the connected Android device
+    dir: .
+    cmds:
+      - adb -s {{.DEVICE_SERIAL}} install -r "src/android/app/build/outputs/apk/debug/app-debug.apk"
+
+  clear-logcat:
+    desc: Clear device logcat before reproducing a crash
+    dir: .
+    cmds:
+      - adb -s {{.DEVICE_SERIAL}} logcat -c
+
+  show-crash-log:
+    desc: Show the Android crash buffer for the connected device
+    dir: .
+    cmds:
+      - adb -s {{.DEVICE_SERIAL}} logcat -b crash -d
+
+  show-app-log:
+    desc: Show filtered app and runtime lines from the main log buffer
+    dir: .
+    cmds:
+      - powershell -NoProfile -Command "adb -s {{.DEVICE_SERIAL}} logcat -d | Select-String -Pattern 'org\.citra\.emu\.debug|AndroidRuntime|FATAL EXCEPTION|Fatal signal|backtrace|Abort message|UnsatisfiedLinkError'"
