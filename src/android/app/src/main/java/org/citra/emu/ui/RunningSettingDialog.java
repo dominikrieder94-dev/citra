@@ -128,9 +128,10 @@ public class RunningSettingDialog extends DialogFragment {
         public static final int SETTING_USE_COMPATIBLE_MODE = 8;
         public static final int SETTING_SCALE_FACTOR = 9;
         public static final int SETTING_SCREEN_LAYOUT = 10;
-        public static final int SETTING_ACCURATE_MUL = 11;
-        public static final int SETTING_CUSTOM_LAYOUT = 12;
-        public static final int SETTING_FRAME_LIMIT = 13;
+        public static final int SETTING_LARGE_SCREEN_PROPORTION = 11;
+        public static final int SETTING_ACCURATE_MUL = 12;
+        public static final int SETTING_CUSTOM_LAYOUT = 13;
+        public static final int SETTING_FRAME_LIMIT = 14;
 
         // pref
         public static final int SETTING_JOYSTICK_RELATIVE = 100;
@@ -218,7 +219,7 @@ public class RunningSettingDialog extends DialogFragment {
     }
 
     public final class TextSettingViewHolder extends SettingViewHolder {
-        SettingsItem mItem;
+        private SettingsItem mItem;
         private TextView mName;
 
         public TextSettingViewHolder(View itemView) {
@@ -234,15 +235,14 @@ public class RunningSettingDialog extends DialogFragment {
         public void bind(SettingsItem item) {
             mItem = item;
             mName.setText(item.getName());
-            if (mItem.getSetting() == SettingsItem.SETTING_MULTIPLAYER_ROOM_MEMBER && mItem.getValue() != 0) {
-                mName.setTextColor(mName.getContext().getColor(R.color.citra_accent));
-            } else {
-                mName.setTextColor(mName.getContext().getColor(R.color.foreground_color));
-            }
         }
 
         @Override
         public void onClick(View clicked) {
+            if (mItem == null) {
+                return;
+            }
+
             EmulationActivity activity = (EmulationActivity)NativeLibrary.getEmulationContext();
             switch (mItem.getSetting()) {
             case SettingsItem.SETTING_LOAD_SUBMENU:
@@ -254,7 +254,6 @@ public class RunningSettingDialog extends DialogFragment {
                 break;
             case SettingsItem.SETTING_RESET_CAMERA:
                 NativeLibrary.ResetCamera();
-                dismiss();
                 break;
             case SettingsItem.SETTING_ROTATE_SCREEN:
                 activity.rotateScreen();
@@ -277,63 +276,25 @@ public class RunningSettingDialog extends DialogFragment {
                 dismiss();
                 break;
             case SettingsItem.SETTING_MULTIPLAYER_CREATE_ROOM:
-                NetPlayManager.ShowCreateRoomDialog(getActivity());
-                dismiss();
+                NetPlayManager.ShowCreateRoomDialog(activity);
                 break;
             case SettingsItem.SETTING_MULTIPLAYER_JOIN_ROOM:
-                NetPlayManager.ShowJoinRoomDialog(getActivity());
-                dismiss();
+                NetPlayManager.ShowJoinRoomDialog(activity);
                 break;
             case SettingsItem.SETTING_MULTIPLAYER_EXIT_ROOM:
                 NetPlayManager.NetPlayLeaveRoom();
-                dismiss();
+                loadSubMenu(MENU_MULTIPLAYER);
+                break;
+            default:
                 break;
             }
         }
     }
 
-    public final class ButtonSettingViewHolder extends SettingViewHolder {
-        SettingsItem mItem;
-        private TextView mName;
-        private Button mButton;
-
-        public ButtonSettingViewHolder(View itemView) {
-            super(itemView);
-            itemView.setOnClickListener(null);
-        }
-
-        @Override
-        protected void findViews(View root) {
-            mName = root.findViewById(R.id.text_setting_name);
-            mButton = root.findViewById(R.id.button_setting);
-            mButton.setText(R.string.multiplayer_kick_member);
-        }
-
-        @Override
-        public void bind(SettingsItem item) {
-            mItem = item;
-            mName.setText(mItem.getName());
-            mButton.setOnClickListener(this);
-        }
-
-        @Override
-        public void onClick(View clicked) {
-            if (mItem.getSetting() == SettingsItem.SETTING_MULTIPLAYER_ROOM_MEMBER) {
-                String text = mItem.getName();
-                int pos = text.indexOf('[');
-                if (pos > 0) {
-                    text = text.substring(0, pos - 1);
-                }
-                NetPlayManager.NetPlayKickUser(text);
-            }
-        }
-    }
-
-    public final class CheckBoxSettingViewHolder
-        extends SettingViewHolder implements CompoundButton.OnCheckedChangeListener {
-        SettingsItem mItem;
+    public final class CheckBoxSettingViewHolder extends SettingViewHolder {
+        private SettingsItem mItem;
         private TextView mTextSettingName;
-        private CheckBox mCheckbox;
+        private CheckBox mCheckBox;
 
         public CheckBoxSettingViewHolder(View itemView) {
             super(itemView);
@@ -342,38 +303,35 @@ public class RunningSettingDialog extends DialogFragment {
         @Override
         protected void findViews(View root) {
             mTextSettingName = root.findViewById(R.id.text_setting_name);
-            mCheckbox = root.findViewById(R.id.checkbox);
-            mCheckbox.setOnCheckedChangeListener(this);
+            mCheckBox = root.findViewById(R.id.checkbox);
         }
 
         @Override
         public void bind(SettingsItem item) {
             mItem = item;
             mTextSettingName.setText(item.getName());
-            mCheckbox.setChecked(mItem.getValue() > 0);
+            mCheckBox.setChecked(item.getValue() > 0);
         }
 
         @Override
         public void onClick(View clicked) {
-            mCheckbox.toggle();
-            mItem.setValue(mCheckbox.isChecked() ? 1 : 0);
-        }
+            if (mItem == null) {
+                return;
+            }
 
-        @Override
-        public void onCheckedChanged(CompoundButton view, boolean isChecked) {
-            mItem.setValue(isChecked ? 1 : 0);
+            final boolean checked = !mCheckBox.isChecked();
+            mCheckBox.setChecked(checked);
+            mItem.setValue(checked ? 1 : 0);
         }
     }
 
-    public final class RadioButtonSettingViewHolder
-            extends SettingViewHolder implements RadioGroup.OnCheckedChangeListener
-    {
-        SettingsItem mItem;
+    public final class RadioButtonSettingViewHolder extends SettingViewHolder
+        implements RadioGroup.OnCheckedChangeListener {
+        private SettingsItem mItem;
         private TextView mTextSettingName;
         private RadioGroup mRadioGroup;
 
-        public RadioButtonSettingViewHolder(View itemView)
-        {
+        public RadioButtonSettingViewHolder(View itemView) {
             super(itemView);
         }
 
@@ -386,78 +344,54 @@ public class RunningSettingDialog extends DialogFragment {
 
         @Override
         public void bind(SettingsItem item) {
-            int checkIds[] = {R.id.radio0, R.id.radio1, R.id.radio2, R.id.radio3};
-            int index = item.getValue();
-            if (index < 0 || index >= checkIds.length)
-                index = 0;
-
             mItem = item;
             mTextSettingName.setText(item.getName());
-            mRadioGroup.check(checkIds[index]);
+
+            final RadioButton radio0 = mRadioGroup.findViewById(R.id.radio0);
+            final RadioButton radio1 = mRadioGroup.findViewById(R.id.radio1);
+            final RadioButton radio2 = mRadioGroup.findViewById(R.id.radio2);
+            final RadioButton radio3 = mRadioGroup.findViewById(R.id.radio3);
+            final RadioButton radio4 = mRadioGroup.findViewById(R.id.radio4);
 
             if (item.getSetting() == SettingsItem.SETTING_SCREEN_LAYOUT) {
-                RadioButton radio0 = mRadioGroup.findViewById(R.id.radio0);
-                radio0.setText(R.string.default_value);
-
-                RadioButton radio1 = mRadioGroup.findViewById(R.id.radio1);
-                radio1.setText(R.string.single_screen_option);
-
-                RadioButton radio2 = mRadioGroup.findViewById(R.id.radio2);
-                radio2.setText(R.string.large_screen_option);
-
-                RadioButton radio3 = mRadioGroup.findViewById(R.id.radio3);
-                radio3.setVisibility(View.VISIBLE);
-                radio3.setText(R.string.side_screen_option);
+                configureRadioButton(radio0, View.VISIBLE, R.string.default_value);
+                configureRadioButton(radio1, View.VISIBLE, R.string.single_screen_option);
+                configureRadioButton(radio2, View.VISIBLE, R.string.large_screen_option);
+                configureRadioButton(radio3, View.VISIBLE, R.string.large_screen_top_option);
+                configureRadioButton(radio4, View.VISIBLE, R.string.side_screen_option);
             } else if (item.getSetting() == SettingsItem.SETTING_SCALE_FACTOR) {
-                RadioButton radio0 = mRadioGroup.findViewById(R.id.radio0);
-                radio0.setText("×1");
-
-                RadioButton radio1 = mRadioGroup.findViewById(R.id.radio1);
-                radio1.setText("×2");
-
-                RadioButton radio2 = mRadioGroup.findViewById(R.id.radio2);
-                radio2.setText("×3");
-
-                RadioButton radio3 = mRadioGroup.findViewById(R.id.radio3);
+                radio0.setVisibility(View.VISIBLE);
+                radio0.setText("x1");
+                radio1.setVisibility(View.VISIBLE);
+                radio1.setText("x2");
+                radio2.setVisibility(View.VISIBLE);
+                radio2.setText("x3");
                 radio3.setVisibility(View.VISIBLE);
-                radio3.setText("×4");
+                radio3.setText("x4");
+                radio4.setVisibility(View.GONE);
             } else if (item.getSetting() == SettingsItem.SETTING_ACCURATE_MUL) {
-                RadioButton radio0 = mRadioGroup.findViewById(R.id.radio0);
-                radio0.setText(R.string.accurate_mul_off);
-
-                RadioButton radio1 = mRadioGroup.findViewById(R.id.radio1);
-                radio1.setText(R.string.accurate_mul_fast);
-
-                RadioButton radio2 = mRadioGroup.findViewById(R.id.radio2);
-                radio2.setText(R.string.accurate_mul_accurate);
-
-                RadioButton radio3 = mRadioGroup.findViewById(R.id.radio3);
+                configureRadioButton(radio0, View.VISIBLE, R.string.accurate_mul_off);
+                configureRadioButton(radio1, View.VISIBLE, R.string.accurate_mul_fast);
+                configureRadioButton(radio2, View.VISIBLE, R.string.accurate_mul_accurate);
                 radio3.setVisibility(View.GONE);
+                radio4.setVisibility(View.GONE);
             } else if (item.getSetting() == SettingsItem.SETTING_FORCE_TEXTURE_FILTER) {
-                RadioButton radio0 = mRadioGroup.findViewById(R.id.radio0);
-                radio0.setText(R.string.auto);
-
-                RadioButton radio1 = mRadioGroup.findViewById(R.id.radio1);
-                radio1.setText(R.string.nearest);
-
-                RadioButton radio2 = mRadioGroup.findViewById(R.id.radio2);
-                radio2.setText(R.string.linear);
-
-                RadioButton radio3 = mRadioGroup.findViewById(R.id.radio3);
+                configureRadioButton(radio0, View.VISIBLE, R.string.auto);
+                configureRadioButton(radio1, View.VISIBLE, R.string.nearest);
+                configureRadioButton(radio2, View.VISIBLE, R.string.linear);
                 radio3.setVisibility(View.GONE);
+                radio4.setVisibility(View.GONE);
             } else if (item.getSetting() == SettingsItem.SETTING_HW_GS_MODE) {
-                RadioButton radio0 = mRadioGroup.findViewById(R.id.radio0);
-                radio0.setText(R.string.auto);
-
-                RadioButton radio1 = mRadioGroup.findViewById(R.id.radio1);
-                radio1.setText(R.string.enable);
-
-                RadioButton radio2 = mRadioGroup.findViewById(R.id.radio2);
-                radio2.setText(R.string.off);
-
-                RadioButton radio3 = mRadioGroup.findViewById(R.id.radio3);
+                configureRadioButton(radio0, View.VISIBLE, R.string.auto);
+                configureRadioButton(radio1, View.VISIBLE, R.string.enable);
+                configureRadioButton(radio2, View.VISIBLE, R.string.off);
                 radio3.setVisibility(View.GONE);
+                radio4.setVisibility(View.GONE);
             }
+
+            mRadioGroup.setOnCheckedChangeListener(null);
+            mRadioGroup.check(getCheckedId(item));
+            mRadioGroup.setOnCheckedChangeListener(this);
         }
 
         @Override
@@ -465,28 +399,88 @@ public class RunningSettingDialog extends DialogFragment {
 
         @Override
         public void onCheckedChanged(RadioGroup group, int checkedId) {
-            switch (checkedId) {
-                case R.id.radio0:
-                    mItem.setValue(0);
-                    break;
-                case R.id.radio1:
-                    mItem.setValue(1);
-                    break;
-                case R.id.radio2:
-                    mItem.setValue(2);
-                    break;
-                case R.id.radio3:
-                    mItem.setValue(3);
-                    break;
-                default:
-                    mItem.setValue(0);
-                    break;
+            if (mItem == null) {
+                return;
             }
+
+            if (mItem.getSetting() == SettingsItem.SETTING_SCREEN_LAYOUT) {
+                if (checkedId == R.id.radio0) {
+                    mItem.setValue(0);
+                } else if (checkedId == R.id.radio1) {
+                    mItem.setValue(1);
+                } else if (checkedId == R.id.radio2) {
+                    mItem.setValue(2);
+                } else if (checkedId == R.id.radio3) {
+                    mItem.setValue(4);
+                } else if (checkedId == R.id.radio4) {
+                    mItem.setValue(3);
+                } else {
+                    mItem.setValue(0);
+                }
+                return;
+            }
+
+            if (checkedId == R.id.radio0) {
+                mItem.setValue(0);
+            } else if (checkedId == R.id.radio1) {
+                mItem.setValue(1);
+            } else if (checkedId == R.id.radio2) {
+                mItem.setValue(2);
+            } else if (checkedId == R.id.radio3) {
+                mItem.setValue(3);
+            } else if (checkedId == R.id.radio4) {
+                mItem.setValue(4);
+            } else {
+                mItem.setValue(0);
+            }
+        }
+
+        private void configureRadioButton(RadioButton button, int visibility, int textId) {
+            button.setVisibility(visibility);
+            button.setText(textId);
+        }
+
+        private int getCheckedId(SettingsItem item) {
+            if (item.getSetting() == SettingsItem.SETTING_SCREEN_LAYOUT) {
+                switch (item.getValue()) {
+                case 0:
+                    return R.id.radio0;
+                case 1:
+                    return R.id.radio1;
+                case 2:
+                    return R.id.radio2;
+                case 4:
+                    return R.id.radio3;
+                case 3:
+                    return R.id.radio4;
+                default:
+                    return R.id.radio0;
+                }
+            }
+
+            final int index = Math.max(0, Math.min(item.getValue(), 4));
+            return getRadioIdForIndex(index);
+        }
+
+        private int getRadioIdForIndex(int index) {
+            if (index <= 0) {
+                return R.id.radio0;
+            }
+            if (index == 1) {
+                return R.id.radio1;
+            }
+            if (index == 2) {
+                return R.id.radio2;
+            }
+            if (index == 3) {
+                return R.id.radio3;
+            }
+            return R.id.radio4;
         }
     }
 
     public final class SeekBarSettingViewHolder extends SettingViewHolder {
-        SettingsItem mItem;
+        private SettingsItem mItem;
         private TextView mTextSettingName;
         private TextView mTextSettingValue;
         private SeekBar mSeekBar;
@@ -501,14 +495,10 @@ public class RunningSettingDialog extends DialogFragment {
                 }
 
                 @Override
-                public void onStartTrackingTouch(SeekBar seekBar) {
-
-                }
+                public void onStartTrackingTouch(SeekBar seekBar) {}
 
                 @Override
-                public void onStopTrackingTouch(SeekBar seekBar) {
-
-                }
+                public void onStopTrackingTouch(SeekBar seekBar) {}
             };
         }
 
@@ -524,27 +514,98 @@ public class RunningSettingDialog extends DialogFragment {
             mItem = item;
             mTextSettingName.setText(item.getName());
             mSeekBar.setOnSeekBarChangeListener(null);
-            if (mItem.getSetting() == SettingsItem.SETTING_FRAME_LIMIT) {
-                mSeekBar.setMax(200);
-            } else {
-                mSeekBar.setMax(100);
-            }
-            mSeekBar.setProgress(item.getValue());
-            mSeekBar.setOnSeekBarChangeListener(mOnSeekBarChangeListener);
-            refreshProgress(item.getValue());
-        }
 
-        private void refreshProgress(int progress) {
-            if (mSeekBar.getMax() > 99) {
-                mTextSettingValue.setText(progress + "%");
-            } else {
-                mTextSettingValue.setText(String.valueOf(progress));
+            switch (item.getSetting()) {
+            case SettingsItem.SETTING_CONTROLLER_SCALE:
+            case SettingsItem.SETTING_CONTROLLER_ALPHA:
+                mSeekBar.setMax(100);
+                mSeekBar.setProgress(clamp(item.getValue(), 0, 100));
+                break;
+            case SettingsItem.SETTING_LARGE_SCREEN_PROPORTION:
+                mSeekBar.setMax(75);
+                mSeekBar.setProgress(clamp(item.getValue(), 25, 100) - 25);
+                break;
+            case SettingsItem.SETTING_FRAME_LIMIT:
+                mSeekBar.setMax(199);
+                mSeekBar.setProgress(clamp(item.getValue(), 1, 200) - 1);
+                break;
+            default:
+                mSeekBar.setMax(100);
+                mSeekBar.setProgress(clamp(item.getValue(), 0, 100));
+                break;
             }
-            mItem.setValue(progress);
+
+            refreshProgress(mSeekBar.getProgress());
+            mSeekBar.setOnSeekBarChangeListener(mOnSeekBarChangeListener);
         }
 
         @Override
         public void onClick(View clicked) {}
+
+        private void refreshProgress(int progress) {
+            if (mItem == null) {
+                return;
+            }
+
+            switch (mItem.getSetting()) {
+            case SettingsItem.SETTING_CONTROLLER_SCALE:
+            case SettingsItem.SETTING_CONTROLLER_ALPHA:
+                mItem.setValue(progress);
+                mTextSettingValue.setText(progress + "%");
+                break;
+            case SettingsItem.SETTING_LARGE_SCREEN_PROPORTION:
+                mItem.setValue(progress + 25);
+                mTextSettingValue.setText((progress + 25) + "%");
+                break;
+            case SettingsItem.SETTING_FRAME_LIMIT:
+                mItem.setValue(progress + 1);
+                mTextSettingValue.setText((progress + 1) + "%");
+                break;
+            default:
+                mItem.setValue(progress);
+                mTextSettingValue.setText(String.valueOf(progress));
+                break;
+            }
+        }
+
+        private int clamp(int value, int min, int max) {
+            return Math.max(min, Math.min(value, max));
+        }
+    }
+
+    public final class ButtonSettingViewHolder extends SettingViewHolder {
+        private SettingsItem mItem;
+        private TextView mTextSettingName;
+        private Button mButton;
+
+        public ButtonSettingViewHolder(View itemView) {
+            super(itemView);
+        }
+
+        @Override
+        protected void findViews(View root) {
+            mTextSettingName = root.findViewById(R.id.text_setting_name);
+            mButton = root.findViewById(R.id.button_setting);
+            mButton.setOnClickListener(this);
+        }
+
+        @Override
+        public void bind(SettingsItem item) {
+            mItem = item;
+            mTextSettingName.setText(item.getName());
+            mButton.setText(R.string.multiplayer_kick_member);
+        }
+
+        @Override
+        public void onClick(View clicked) {
+            if (mItem == null) {
+                return;
+            }
+
+            if (mItem.getSetting() == SettingsItem.SETTING_MULTIPLAYER_ROOM_MEMBER) {
+                NetPlayManager.NetPlayKickUser(mItem.getName());
+            }
+        }
     }
 
     public class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolder> {
@@ -660,6 +721,9 @@ public class RunningSettingDialog extends DialogFragment {
                     mRunningSettings[i++]));
             mSettings.add(new SettingsItem(SettingsItem.SETTING_SCREEN_LAYOUT,
                     R.string.running_layout, SettingsItem.TYPE_RADIO_GROUP,
+                    mRunningSettings[i++]));
+            mSettings.add(new SettingsItem(SettingsItem.SETTING_LARGE_SCREEN_PROPORTION,
+                    R.string.running_large_screen_proportion, SettingsItem.TYPE_SEEK_BAR,
                     mRunningSettings[i++]));
             mSettings.add(new SettingsItem(SettingsItem.SETTING_ACCURATE_MUL,
                     R.string.running_accurate_mul, SettingsItem.TYPE_RADIO_GROUP,

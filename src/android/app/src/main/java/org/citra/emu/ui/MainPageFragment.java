@@ -6,6 +6,7 @@ import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
+import android.os.Build;
 import android.os.Bundle;
 
 import androidx.annotation.NonNull;
@@ -77,7 +78,11 @@ public class MainPageFragment extends Fragment {
 
         if (mPosition == 0) {
             mPageInfo.setText(R.string.game_emulation_info);
-            mBtnAction.setText(R.string.add_directory_title);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !CitraDirectory.isExternalStorageLegacy()) {
+                mBtnAction.setText(R.string.add_games_title);
+            } else {
+                mBtnAction.setText(R.string.add_directory_title);
+            }
             mBtnAction.setOnClickListener(view -> FileBrowserHelper.openDirectoryPicker((Activity) view.getContext()));
         } else {
             mPageInfo.setText(R.string.application_emulation_info);

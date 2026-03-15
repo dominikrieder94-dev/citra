@@ -3,6 +3,7 @@
 // Refer to the license.txt file included.
 
 #include <array>
+#include <atomic>
 #include <cstddef>
 #include <memory>
 #include <utility>
@@ -29,9 +30,17 @@
 #include "video_core/vertex_loader.h"
 #include "video_core/video_core.h"
 
+#ifdef ANDROID
+#include <android/log.h>
+#define CITRA_CMDPROC_ANDROID_LOG(...) __android_log_print(ANDROID_LOG_INFO, "citra", __VA_ARGS__)
+#else
+#define CITRA_CMDPROC_ANDROID_LOG(...) ((void)0)
+#endif
+
 namespace Pica::CommandProcessor {
 
 MICROPROFILE_DEFINE(GPU_Drawing, "GPU", "Drawing", MP_RGB(50, 50, 240));
+static std::atomic<u32> s_command_list_logs{0};
 
 static const char* GetShaderSetupTypeName(Shader::ShaderSetup& setup) {
     if (&setup == &g_state.vs) {
@@ -588,6 +597,11 @@ static void WritePicaReg(u32 id, u32 value, u32 mask) {
 }
 
 void ProcessCommandList(PAddr list, u32 size) {
+    const u32 log_index = s_command_list_logs.fetch_add(1);
+    if (log_index < 16) {
+        CITRA_CMDPROC_ANDROID_LOG("ProcessCommandList[%u] list=%08x size=%u", log_index, list,
+                                  size);
+    }
     u32* buffer = (u32*)VideoCore::Memory()->GetPhysicalPointer(list);
     g_state.cmd_list.addr = list;
     g_state.cmd_list.head_ptr = g_state.cmd_list.current_ptr = buffer;

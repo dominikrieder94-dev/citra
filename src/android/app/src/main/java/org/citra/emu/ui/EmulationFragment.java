@@ -222,6 +222,7 @@ public final class EmulationFragment extends Fragment implements SurfaceHolder.C
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
         mSurface = holder.getSurface();
+        android.util.Log.i("citra", "surfaceChanged format=" + format + " size=" + width + "x" + height + " state=" + mState + " runWhenSurfaceIsValid=" + mRunWhenSurfaceIsValid);
         if (mRunWhenSurfaceIsValid) {
             runWithValidSurface();
         }
@@ -238,12 +239,16 @@ public final class EmulationFragment extends Fragment implements SurfaceHolder.C
         if (mSurface == null) {
             // [EmulationFragment] clearSurface called, but surface already null.
         } else {
+            android.util.Log.i("citra", "surfaceDestroyed state=" + mState);
             mSurface = null;
             if (mState == EmulationState.RUNNING) {
                 NativeLibrary.SurfaceDestroyed();
+                NativeLibrary.PauseEmulation();
                 mState = EmulationState.PAUSED;
+                mRunWhenSurfaceIsValid = true;
             } else if (mState == EmulationState.PAUSED) {
                 // [EmulationFragment] Surface cleared while emulation paused.
+                mRunWhenSurfaceIsValid = true;
             } else {
                 // [EmulationFragment] Surface cleared while emulation stopped.
             }
@@ -253,6 +258,7 @@ public final class EmulationFragment extends Fragment implements SurfaceHolder.C
     @Override
     public void onResume() {
         super.onResume();
+        android.util.Log.i("citra", "EmulationFragment.onResume state=" + mState + " nativeRunning=" + NativeLibrary.IsRunning() + " hasSurface=" + (mSurface != null));
         Choreographer.getInstance().postFrameCallback(this);
 
         if (NativeLibrary.IsRunning()) {
@@ -269,6 +275,7 @@ public final class EmulationFragment extends Fragment implements SurfaceHolder.C
 
     @Override
     public void onPause() {
+        android.util.Log.i("citra", "EmulationFragment.onPause state=" + mState + " hasSurface=" + (mSurface != null));
         if (mState == EmulationState.RUNNING) {
             mState = EmulationState.PAUSED;
             // Release the surface before pausing, since emulation has to be running for that.
@@ -333,6 +340,7 @@ public final class EmulationFragment extends Fragment implements SurfaceHolder.C
 
     public void stopEmulation() {
         if (mState != EmulationState.STOPPED) {
+            android.util.Log.i("citra", "EmulationFragment.stopEmulation state=" + mState);
             mState = EmulationState.STOPPED;
             NativeLibrary.StopEmulation();
         }
@@ -404,9 +412,14 @@ public final class EmulationFragment extends Fragment implements SurfaceHolder.C
 
     private void runWithValidSurface() {
         mRunWhenSurfaceIsValid = false;
+        android.util.Log.i("citra", "runWithValidSurface state=" + mState + " path=" + mPath);
         if (mState == EmulationState.STOPPED) {
             NativeLibrary.SurfaceChanged(mSurface);
-            new Thread(() -> NativeLibrary.Run(mPath), "NativeEmulation").start();
+            new Thread(() -> {
+                android.util.Log.i("citra", "NativeEmulation thread entering NativeLibrary.Run");
+                NativeLibrary.Run(mPath);
+                android.util.Log.i("citra", "NativeEmulation thread returned from NativeLibrary.Run");
+            }, "NativeEmulation").start();
         } else if (mState == EmulationState.PAUSED) {
             NativeLibrary.SurfaceChanged(mSurface);
             NativeLibrary.ResumeEmulation();

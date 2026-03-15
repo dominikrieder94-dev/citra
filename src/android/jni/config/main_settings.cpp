@@ -32,6 +32,9 @@ const ConfigInfo<Settings::LayoutOption> LAYOUT_OPTION{{"Renderer", "layout_opti
                                                        Settings::LayoutOption::Default};
 const ConfigInfo<Settings::LayoutOption> LANDSCAPE_LAYOUT_OPTION{
     {"Renderer", "landscape_layout_option"}, Settings::LayoutOption::Default};
+const ConfigInfo<u16> LARGE_SCREEN_PROPORTION{{"Renderer", "large_screen_proportion"}, 75};
+const ConfigInfo<u16> LANDSCAPE_LARGE_SCREEN_PROPORTION{
+    {"Renderer", "landscape_large_screen_proportion"}, 75};
 const ConfigInfo<Settings::PresentationMode> SCREEN_PRESENTATION_MODE{
         {"Renderer", "screen_presentation_mode"}, Settings::PresentationMode::Default};
 const ConfigInfo<std::string> POST_PROCESSING_SHADER{{"Renderer", "pp_shader_name"}, ""};

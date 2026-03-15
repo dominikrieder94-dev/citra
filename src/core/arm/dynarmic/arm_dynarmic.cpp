@@ -2,9 +2,10 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include <array>
 #include <cstring>
-#include <dynarmic/A32/a32.h>
-#include <dynarmic/A32/context.h>
+#include <dynarmic/interface/A32/a32.h>
+#include <dynarmic/interface/exclusive_monitor.h>
 #include "common/assert.h"
 #include "common/microprofile.h"
 #include "core/arm/dynarmic/arm_dynarmic.h"
@@ -15,6 +16,61 @@
 #include "core/hle/kernel/svc.h"
 #include "core/memory.h"
 #include "core/settings.h"
+
+namespace {
+
+struct A32ContextCompat {
+    std::array<std::uint32_t, 16>& Regs() {
+        return regs;
+    }
+    const std::array<std::uint32_t, 16>& Regs() const {
+        return regs;
+    }
+    std::array<std::uint32_t, 64>& ExtRegs() {
+        return ext_regs;
+    }
+    const std::array<std::uint32_t, 64>& ExtRegs() const {
+        return ext_regs;
+    }
+    std::uint32_t Cpsr() const {
+        return cpsr;
+    }
+    void SetCpsr(std::uint32_t value) {
+        cpsr = value;
+    }
+    std::uint32_t Fpscr() const {
+        return fpscr;
+    }
+    void SetFpscr(std::uint32_t value) {
+        fpscr = value;
+    }
+
+    std::array<std::uint32_t, 16> regs{};
+    std::array<std::uint32_t, 64> ext_regs{};
+    std::uint32_t cpsr = 0;
+    std::uint32_t fpscr = 0;
+};
+
+void SaveContextCompat(Dynarmic::A32::Jit& jit, A32ContextCompat& ctx) {
+    ctx.Regs() = jit.Regs();
+    ctx.ExtRegs() = jit.ExtRegs();
+    ctx.SetCpsr(jit.Cpsr());
+    ctx.SetFpscr(jit.Fpscr());
+}
+
+void LoadContextCompat(Dynarmic::A32::Jit& jit, const A32ContextCompat& ctx) {
+    jit.Regs() = ctx.Regs();
+    jit.ExtRegs() = ctx.ExtRegs();
+    jit.SetCpsr(ctx.Cpsr());
+    jit.SetFpscr(ctx.Fpscr());
+}
+
+Dynarmic::ExclusiveMonitor& GetExclusiveMonitor() {
+    static Dynarmic::ExclusiveMonitor monitor{Core::GetNumCores()};
+    return monitor;
+}
+
+} // namespace
 
 class DynarmicThreadContext final : public ARM_Interface::ThreadContext {
 public:
@@ -65,7 +121,7 @@ public:
 private:
     friend class ARM_Dynarmic;
 
-    Dynarmic::A32::Context ctx;
+    A32ContextCompat ctx;
     u32 fpexc;
 };
 
@@ -99,6 +155,38 @@ public:
     }
     void MemoryWrite64(VAddr vaddr, std::uint64_t value) override {
         memory.Write64(vaddr, value);
+    }
+    bool MemoryWriteExclusive8(VAddr vaddr, std::uint8_t value,
+                               std::uint8_t expected) override {
+        if (memory.Read8(vaddr) != expected) {
+            return false;
+        }
+        memory.Write8(vaddr, value);
+        return true;
+    }
+    bool MemoryWriteExclusive16(VAddr vaddr, std::uint16_t value,
+                                std::uint16_t expected) override {
+        if (memory.Read16(vaddr) != expected) {
+            return false;
+        }
+        memory.Write16(vaddr, value);
+        return true;
+    }
+    bool MemoryWriteExclusive32(VAddr vaddr, std::uint32_t value,
+                                std::uint32_t expected) override {
+        if (memory.Read32(vaddr) != expected) {
+            return false;
+        }
+        memory.Write32(vaddr, value);
+        return true;
+    }
+    bool MemoryWriteExclusive64(VAddr vaddr, std::uint64_t value,
+                                std::uint64_t expected) override {
+        if (memory.Read64(vaddr) != expected) {
+            return false;
+        }
+        memory.Write64(vaddr, value);
+        return true;
     }
 
     void InterpreterFallback(VAddr pc, std::size_t num_instructions) override {
@@ -258,7 +346,7 @@ void ARM_Dynarmic::SaveContext(const std::unique_ptr<ThreadContext>& arg) {
     DynarmicThreadContext* ctx = dynamic_cast<DynarmicThreadContext*>(arg.get());
     ASSERT(ctx);
 
-    jit->SaveContext(ctx->ctx);
+    SaveContextCompat(*jit, ctx->ctx);
     ctx->fpexc = fpexc;
 }
 
@@ -266,7 +354,7 @@ void ARM_Dynarmic::LoadContext(const std::unique_ptr<ThreadContext>& arg) {
     const DynarmicThreadContext* ctx = dynamic_cast<DynarmicThreadContext*>(arg.get());
     ASSERT(ctx);
 
-    jit->LoadContext(ctx->ctx);
+    LoadContextCompat(*jit, ctx->ctx);
     fpexc = ctx->fpexc;
 }
 
@@ -293,21 +381,21 @@ Memory::PageTable* ARM_Dynarmic::GetPageTable() const {
 
 void ARM_Dynarmic::SetPageTable(Memory::PageTable* page_table) {
     current_page_table = page_table;
-    Dynarmic::A32::Context ctx{};
+    A32ContextCompat ctx{};
     if (jit) {
-        jit->SaveContext(ctx);
+        SaveContextCompat(*jit, ctx);
     }
 
     auto iter = jits.find(current_page_table);
     if (iter != jits.end()) {
         jit = iter->second.get();
-        jit->LoadContext(ctx);
+        LoadContextCompat(*jit, ctx);
         return;
     }
 
     auto new_jit = MakeJit();
     jit = new_jit.get();
-    jit->LoadContext(ctx);
+    LoadContextCompat(*jit, ctx);
     jits.emplace(current_page_table, std::move(new_jit));
 }
 
@@ -321,6 +409,8 @@ void ARM_Dynarmic::ServeBreak() {
 std::unique_ptr<Dynarmic::A32::Jit> ARM_Dynarmic::MakeJit() {
     Dynarmic::A32::UserConfig config;
     config.callbacks = cb.get();
+    config.processor_id = GetID();
+    config.global_monitor = &GetExclusiveMonitor();
     config.page_table = &current_page_table->pointers;
     config.coprocessors[15] = std::make_shared<DynarmicCP15>(cp15_state);
     config.define_unpredictable_behaviour = true;

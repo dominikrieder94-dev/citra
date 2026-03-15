@@ -15,6 +15,8 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
+import android.provider.DocumentsContract;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.WindowManager;
@@ -174,7 +176,15 @@ public final class MainActivity extends AppCompatActivity {
         }
 
         protected void refreshSaf() {
-            List<Uri> dirs = new ArrayList<>(uriSet);
+            List<Uri> dirs = new ArrayList<>();
+            for (Uri uri : uriSet) {
+                if (DocumentsContract.isTreeUri(uri)) {
+                    dirs.add(uri);
+                } else {
+                    addSafFile(uri);
+                }
+            }
+
             while (dirs.size() > 0) {
                 Uri dirUri = dirs.get(0);
                 dirs.remove(0);
@@ -185,20 +195,38 @@ public final class MainActivity extends AppCompatActivity {
                 DocumentFile[] files = documentFile.listFiles();
                 for (DocumentFile file : files) {
                     Uri uri = file.getUri();
-                    String path = uri.toString();
                     if (file.isDirectory()) {
                         if (!uriSet.contains(uri)) {
                             dirs.add(uri);
                         }
-                    } else if (NativeLibrary.isValidFile(path) && NativeLibrary.IsAppExecutable(path)) {
-                        GameFile game = new GameFile(path, false);
-                        game.init();
-                        externals.add(game);
+                    } else {
+                        addSafFile(uri, file);
                     }
                 }
             }
 
             externals.sort(Comparator.comparing(GameFile::getName));
+        }
+
+        private void addSafFile(Uri uri) {
+            DocumentFile file = DocumentFile.fromSingleUri(context, uri);
+            addSafFile(uri, file);
+        }
+
+        private void addSafFile(Uri uri, DocumentFile file) {
+            if (file == null || file.isDirectory()) {
+                return;
+            }
+
+            final String name = file.getName();
+            final String path = uri.toString();
+            if (name == null || !NativeLibrary.isValidFile(name) || !NativeLibrary.IsAppExecutable(path)) {
+                return;
+            }
+
+            GameFile game = new GameFile(path, false);
+            game.init();
+            externals.add(game);
         }
 
         protected void saveGameList() {
@@ -394,35 +422,35 @@ public final class MainActivity extends AppCompatActivity {
 
         MaterialToolbar toolbar = findViewById(R.id.top_appbar);
         toolbar.setOnMenuItemClickListener(menuItem -> {
-            switch (menuItem.getItemId()) {
-                case R.id.menu_add_directory:
-                    FileBrowserHelper.openDirectoryPicker(this);
-                    return true;
-
-                case R.id.menu_settings_core:
-                    SettingsActivity.launch(this, MenuTag.CONFIG, "", "");
-                    return true;
-
-                case R.id.menu_input_binding:
-                    SettingsActivity.launch(this, MenuTag.INPUT, "", "");
-                    return true;
-
-                case R.id.menu_combo_key:
-                    ComboKeyActivity.launch(this);
-                    return true;
-
-                case R.id.menu_install_cia:
-                    FileBrowserHelper.openFilePicker(this);
-                    return true;
-
-                case R.id.menu_multiplayer:
-                    RunningSettingDialog dialog = RunningSettingDialog.newInstance(RunningSettingDialog.MENU_MULTIPLAYER);
-                    dialog.show(getSupportFragmentManager(), "RunningSettingDialog");
-                    return true;
-
-                case R.id.menu_refresh:
-                    refreshLibrary();
-                    return true;
+            final int itemId = menuItem.getItemId();
+            if (itemId == R.id.menu_add_directory) {
+                FileBrowserHelper.openDirectoryPicker(this);
+                return true;
+            }
+            if (itemId == R.id.menu_settings_core) {
+                SettingsActivity.launch(this, MenuTag.CONFIG, "", "");
+                return true;
+            }
+            if (itemId == R.id.menu_input_binding) {
+                SettingsActivity.launch(this, MenuTag.INPUT, "", "");
+                return true;
+            }
+            if (itemId == R.id.menu_combo_key) {
+                ComboKeyActivity.launch(this);
+                return true;
+            }
+            if (itemId == R.id.menu_install_cia) {
+                FileBrowserHelper.openFilePicker(this);
+                return true;
+            }
+            if (itemId == R.id.menu_multiplayer) {
+                RunningSettingDialog dialog = RunningSettingDialog.newInstance(RunningSettingDialog.MENU_MULTIPLAYER);
+                dialog.show(getSupportFragmentManager(), "RunningSettingDialog");
+                return true;
+            }
+            if (itemId == R.id.menu_refresh) {
+                refreshLibrary();
+                return true;
             }
             return false;
         });
@@ -480,6 +508,11 @@ public final class MainActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (!CitraDirectory.isInitialized() && PermissionsHandler.hasWriteAccess(this)) {
+            CitraDirectory.start(this);
+            showGameList();
+        }
+
         if (mDirToAdd != null) {
             mTabIndex = 0;
             new RefreshTask(mDirToAdd).execute(false);
@@ -532,13 +565,49 @@ public final class MainActivity extends AppCompatActivity {
         case FileBrowserHelper.REQUEST_OPEN_DOCUMENT_TREE:
             if (resultCode == RESULT_OK) {
                 Uri uri = result.getData();
-                getContentResolver().takePersistableUriPermission(uri,
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION |
-                                Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-                mRefreshPersistedUri = true;
+                if (uri != null) {
+                    final int takeFlags = (result.getFlags()
+                            & (Intent.FLAG_GRANT_READ_URI_PERMISSION
+                            | Intent.FLAG_GRANT_WRITE_URI_PERMISSION))
+                            | Intent.FLAG_GRANT_READ_URI_PERMISSION
+                            | Intent.FLAG_GRANT_WRITE_URI_PERMISSION;
+                    Log.i("citra", "Selected SAF tree URI: " + uri);
+                    getContentResolver().takePersistableUriPermission(uri, takeFlags);
+                    mTabIndex = PAGE_FRAGMENT_EXTERNAL;
+                    mViewPager.setCurrentItem(mTabIndex, false);
+                    List<Uri> dirs = new ArrayList<>();
+                    dirs.add(uri);
+                    new RefreshTask(this, dirs).execute(false);
+                }
             }
             break;
-        case FileBrowserHelper.REQUEST_OPEN_DOCUMENT:
+        case FileBrowserHelper.REQUEST_OPEN_DOCUMENT_GAMES:
+            if (resultCode == RESULT_OK) {
+                final int takeFlags = (result.getFlags() & Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        | Intent.FLAG_GRANT_READ_URI_PERMISSION;
+                List<Uri> files = new ArrayList<>();
+                Uri uri = result.getData();
+                ClipData clipData = result.getClipData();
+                if (uri != null) {
+                    getContentResolver().takePersistableUriPermission(uri, takeFlags);
+                    files.add(uri);
+                }
+                if (clipData != null) {
+                    for (int i = 0; i < clipData.getItemCount(); ++i) {
+                        Uri fileUri = clipData.getItemAt(i).getUri();
+                        getContentResolver().takePersistableUriPermission(fileUri, takeFlags);
+                        files.add(fileUri);
+                    }
+                }
+                if (!files.isEmpty()) {
+                    Log.i("citra", "Selected SAF game documents: " + files.size());
+                    mTabIndex = PAGE_FRAGMENT_EXTERNAL;
+                    mViewPager.setCurrentItem(mTabIndex, false);
+                    new RefreshTask(this, files).execute(false);
+                }
+            }
+            break;
+        case FileBrowserHelper.REQUEST_OPEN_DOCUMENT_CIA:
             if (resultCode == RESULT_OK) {
                 Uri uri = result.getData();
                 ClipData clipData = result.getClipData();

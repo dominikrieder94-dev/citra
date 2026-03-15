@@ -64,16 +64,19 @@ public final class CitraDirectory {
         }
 
         File externalPath = null;
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !Environment.isExternalStorageLegacy()) {
-            sInitState = INIT_SAF;
-            externalPath = context.getExternalFilesDir(null);
-        } else if (PermissionsHandler.hasWriteAccess(context)) {
-            if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())) {
+        if (PermissionsHandler.hasWriteAccess(context)) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                sInitState = INIT_LEGACY;
+                externalPath = context.getExternalFilesDir(null);
+            } else if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())) {
                 sInitState = INIT_LEGACY;
                 externalPath = Environment.getExternalStorageDirectory();
             } else {
                 sInitState = INIT_FAILED;
             }
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !Environment.isExternalStorageLegacy()) {
+            sInitState = INIT_SAF;
+            externalPath = context.getExternalFilesDir(null);
         } else {
             sInitState = INIT_FAILED;
         }
@@ -87,6 +90,7 @@ public final class CitraDirectory {
                 mDefaultIcon = BitmapFactory.decodeResource(context.getResources(), R.drawable.no_banner);
                 mIconCache = new IconCache(context);
                 loadTitleDB(context.getAssets());
+                NativeLibrary.ensureLoaded(context);
                 NativeLibrary.SetUserPath(mUserPath);
                 new InitTask().execute(context);
             }
@@ -346,7 +350,7 @@ public final class CitraDirectory {
                 if ("background.glsl".equals(entry.getName())) {
                     ByteArrayOutputStream output = new ByteArrayOutputStream();
                     copyFile(zipIn, output);
-                    NativeLibrary.SetBackgroundGLSL(output.toString());
+                    Log.w("citra", "Ignoring background.glsl from overlay pack; shader import is not exposed in this build");
                     continue;
                 }
                 // buttons and background images

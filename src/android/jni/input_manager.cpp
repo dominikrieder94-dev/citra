@@ -314,10 +314,10 @@ void InputManager::InitProfile() {
     }
 
     std::array<std::string, 4> AnalogConfigs = {
-        Config::Get(Config::CIRCLE_PAD_X),
-        Config::Get(Config::CIRCLE_PAD_Y),
-        Config::Get(Config::C_STICK_X),
-        Config::Get(Config::C_STICK_Y),
+        Config::Get(Config::CIRCLE_PAD_LEFT),
+        Config::Get(Config::CIRCLE_PAD_UP),
+        Config::Get(Config::C_STICK_LEFT),
+        Config::Get(Config::C_STICK_UP),
     };
 
     mAnalogKeys.clear();

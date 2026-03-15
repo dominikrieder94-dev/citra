@@ -97,6 +97,7 @@ public final class EmulationActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        android.util.Log.i("citra", "EmulationActivity.onCreate savedInstanceState=" + (savedInstanceState != null));
         setContentView(R.layout.activity_emulation);
         sInstance = new WeakReference<>(this);
 
@@ -169,7 +170,29 @@ public final class EmulationActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        android.util.Log.i("citra", "EmulationActivity.onResume");
         hideSystemUI();
+    }
+
+    @Override
+    protected void onPause() {
+        android.util.Log.i("citra", "EmulationActivity.onPause finishing=" + isFinishing());
+        super.onPause();
+    }
+
+    @Override
+    protected void onStop() {
+        android.util.Log.i("citra", "EmulationActivity.onStop finishing=" + isFinishing());
+        super.onStop();
+    }
+
+    @Override
+    protected void onDestroy() {
+        android.util.Log.i("citra", "EmulationActivity.onDestroy finishing=" + isFinishing());
+        if (sInstance.get() == this) {
+            sInstance = new WeakReference<>(null);
+        }
+        super.onDestroy();
     }
 
     private void hideSystemUI() {

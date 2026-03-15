@@ -6,8 +6,8 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <fstream>
 #include <map>
+#include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -206,15 +206,13 @@ bool IniFile::Load(const std::string& filename, bool keep_current_data) {
         sections.clear();
     // first section consists of the comments before the first real section
 
-    // Open file
-    std::ifstream in;
-    OpenFStream(in, filename, std::ios::in);
-
-    if (in.fail())
+    std::string data;
+    if (FileUtil::ReadFileToString(true, filename, data) == 0)
         return false;
 
     Section* current_section = nullptr;
     bool first_line = true;
+    std::istringstream in(data);
     while (!in.eof()) {
         std::string line;
 
@@ -261,17 +259,11 @@ bool IniFile::Load(const std::string& filename, bool keep_current_data) {
         }
     }
 
-    in.close();
     return true;
 }
 
 bool IniFile::Save(const std::string& filename) {
-    std::ofstream out;
-    OpenFStream(out, filename, std::ios_base::out);
-
-    if (out.fail()) {
-        return false;
-    }
+    std::ostringstream out;
 
     for (const Section& section : sections) {
         if (!section.keys_order.empty() || !section.m_lines.empty())
@@ -288,6 +280,5 @@ bool IniFile::Save(const std::string& filename) {
         }
     }
 
-    out.close();
-    return true;
+    return FileUtil::WriteStringToFile(true, filename, out.str()) == out.str().size();
 }

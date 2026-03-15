@@ -8,12 +8,14 @@
         <item>@string/default_value</item>
         <item>@string/single_screen</item>
         <item>@string/large_screen</item>
+        <item>@string/large_screen_top_aligned</item>
         <item>@string/side_screen</item>
     </string-array>
     <integer-array name="layoutOptionValues" translatable="false">
         <item>0</item>
         <item>1</item>
         <item>2</item>
+        <item>4</item>
         <item>3</item>
     </integer-array>
 

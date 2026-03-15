@@ -24,12 +24,20 @@ enum class LayoutOption {
     SingleScreen,
     LargeScreen,
     SideScreen,
+    LargeScreenTop,
 };
 
 enum class MicInputType {
     None,
     Real,
     Static,
+};
+
+enum class StereoRenderOption {
+    Off = 0,
+    SideBySide = 1,
+    Anaglyph = 2,
+    Interlaced = 3,
 };
 
 enum class PresentationMode {
@@ -162,13 +170,25 @@ struct Values {
     bool use_hw_renderer;
     bool use_hw_shader;
     bool use_shader_jit;
+    bool filter_mode;
+    bool allow_shadow;
+    bool display_transfer_hack;
+    bool use_linear_filter;
     u16 resolution_factor;
+    StereoRenderOption render_3d;
+    bool use_disk_shader_cache;
     bool vsync_enabled;
     bool use_frame_limit;
     u16 frame_limit;
+    float bg_red;
+    float bg_green;
+    float bg_blue;
+    std::string texture_filter_name;
 
     LayoutOption layout_option;
     bool swap_screen;
+    bool upright_screen;
+    u16 large_screen_proportion;
     bool custom_layout;
     u16 custom_top_left;
     u16 custom_top_top;
@@ -182,11 +202,13 @@ struct Values {
     std::atomic<u8> factor_3d;
     std::string pp_shader_name;
 
+    bool dump_textures;
     bool custom_textures;
+    bool preload_textures;
 
     // Audio
     bool enable_dsp_lle;
-    bool dsp_lle_multithread;
+    bool enable_dsp_lle_multithread;
     std::string sink_id;
     bool enable_audio_stretching;
     std::string audio_device_id;
@@ -219,6 +241,7 @@ struct Values {
     bool merge_framebuffer;
     bool disable_clip_coef;
     bool stream_buffer_hack;
+    bool y2r_perform_hack;
     bool y2r_event_delay;
     bool use_present_thread;
     bool use_direct_display;
@@ -235,6 +258,7 @@ struct Values {
     float joystick_deadzone;
 
     // WebService
+    bool enable_telemetry;
     std::string web_api_url;
     std::string citra_username;
     std::string citra_token;

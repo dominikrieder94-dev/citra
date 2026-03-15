@@ -6,11 +6,14 @@ import static android.Manifest.permission.WRITE_EXTERNAL_STORAGE;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Intent;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.net.Uri;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Environment;
+import android.provider.Settings;
 import android.widget.Toast;
 
 import androidx.core.content.ContextCompat;
@@ -23,6 +26,17 @@ public final class PermissionsHandler {
     public static final int REQUEST_CODE_RECORD_PERMISSION = 502;
 
     public static boolean checkWritePermission(final Activity activity) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (Environment.isExternalStorageManager()) {
+                return true;
+            }
+
+            showMessageOKCancel(
+                activity, activity.getString(R.string.all_files_access_needed),
+                (dialog, which) -> requestAllFilesAccess(activity));
+            return false;
+        }
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !Environment.isExternalStorageLegacy()) {
             return true;
         }
@@ -86,10 +100,23 @@ public final class PermissionsHandler {
     }
 
     public static boolean hasWriteAccess(Context context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            return Environment.isExternalStorageManager();
+        }
         int hasWritePermission =
             ContextCompat.checkSelfPermission(context, WRITE_EXTERNAL_STORAGE);
         return hasWritePermission == PackageManager.PERMISSION_GRANTED;
 
+    }
+
+    private static void requestAllFilesAccess(Activity activity) {
+        Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+        intent.setData(Uri.parse("package:" + activity.getPackageName()));
+        try {
+            activity.startActivity(intent);
+        } catch (Exception e) {
+            activity.startActivity(new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION));
+        }
     }
 
     private static void showMessageOKCancel(final Context context, String message,
