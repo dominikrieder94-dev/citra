@@ -19,6 +19,18 @@
 - The x86_64 Android emulator path expanded scope into unrelated native/dependency issues and should not be treated as the primary target.
 - Samsung scoped-storage behavior can make folder selection brittle; device-side runtime validation should distinguish storage access problems from emulation/runtime failures.
 
+## Screen layout transfer
+- The top-aligned large-screen layout was transferred into `citra_v2` shared layout code and Android settings.
+- Current verification boundary:
+  - the new layout option appears in the non-running Android settings UI
+  - the in-game running-settings dialog still shows only the old layout options
+- Treat that as an Android UI wiring gap, not as a shared-layout math failure.
+
+## Android build bootstrap
+- `citra_v2/src/android` needed `gradlew` and `gradlew.bat` restored for the existing Taskfile-based workflow to make sense.
+- The successful local build path is now `cmd /c gradlew.bat :app:assembleDebug --stacktrace` from `src/android`.
+- If a future agent sees "we cannot build anymore", check for missing wrapper scripts before assuming a code regression.
+
 ## Externals state
 - The current working Android runtime still depends on dirty external states that are not fully represented by the superproject gitlinks.
 - Do not reset, clean, or realign submodules blindly.

@@ -1,8 +1,10 @@
 # TASKS
 
 ## Priority
+- [ ] Finish the screen-layout transfer by wiring `Large Screen (Top Aligned)` and the proportion slider into the in-game running-settings dialog, then verify the behavior on the Galaxy S24+.
 - [ ] Audit and classify dirty `externals/*` state without changing it.
 - [ ] Define a reproducible bootstrap strategy that can recreate the current Android-working state.
+- [ ] Normalize Android build bootstrap so a fresh checkout can build from CLI without machine-specific assumptions: keep wrapper scripts, confirm `Taskfile.yml`, document prerequisites, and decide what belongs in version control.
 - [ ] Validate the current Android build/runtime on at least one representative set of games and record residual issues.
 - [ ] Split releaseability work from future feature workstreams such as screen layout improvements.
 - [ ] Remove or ignore local generated build logs so the worktree stays readable.
@@ -12,3 +14,4 @@
 - [x] Record current external preservation state before normalization. (2026-03-15)
 - [x] Establish repo-local operational docs under `.codex/docs/`. (2026-03-15)
 - [x] Add a repo-local Android device debugging skill under `.codex/skills/`. (2026-03-15)
+- [x] Transfer the first pass of the top-aligned large-screen layout feature into `citra_v2` and build/install it on device. (2026-03-15)
