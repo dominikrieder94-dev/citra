@@ -2,6 +2,7 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include <algorithm>
 #include <cmath>
 #include "common/assert.h"
 #include "core/3ds.h"
@@ -109,6 +110,49 @@ FramebufferLayout LargeFrameLayout(u32 width, u32 height, bool swapped) {
     small_screen = small_screen.TranslateX(large_screen.right).TranslateY(large_screen.top + small_screen.GetHeight() / 2);
     res.top_screen = swapped ? small_screen : large_screen;
     res.bottom_screen = swapped ? large_screen : small_screen;
+    return res;
+}
+
+FramebufferLayout LargeFrameLayoutTop(u32 width, u32 height, bool swapped, float scale_ratio) {
+    FramebufferLayout res{width, height, true, true, {}, {}};
+
+    const float clamped_ratio = std::clamp(scale_ratio, 0.25f, 1.0f);
+    const float primary_width = swapped ? Core::kScreenBottomWidth : Core::kScreenTopWidth;
+    const float primary_height = swapped ? Core::kScreenBottomHeight : Core::kScreenTopHeight;
+    const float secondary_width = swapped ? Core::kScreenTopWidth : Core::kScreenBottomWidth;
+    const float secondary_height = swapped ? Core::kScreenTopHeight : Core::kScreenBottomHeight;
+
+    const float total_width = primary_width + (secondary_width * clamped_ratio);
+    const float total_height = std::max(primary_height, secondary_height * clamped_ratio);
+    const float total_aspect_ratio = total_height / total_width;
+
+    Common::Rectangle<u32> screen_area{0, 0, width, height};
+    Common::Rectangle<u32> total_rect = maxRectangle(screen_area, total_aspect_ratio);
+    const float base_scale =
+        std::min(static_cast<float>(total_rect.GetWidth()) / total_width,
+                 static_cast<float>(total_rect.GetHeight()) / total_height);
+
+    const u32 primary_rect_width = static_cast<u32>(std::round(primary_width * base_scale));
+    const u32 primary_rect_height = static_cast<u32>(std::round(primary_height * base_scale));
+    const u32 secondary_rect_width =
+        static_cast<u32>(std::round(secondary_width * clamped_ratio * base_scale));
+    const u32 secondary_rect_height =
+        static_cast<u32>(std::round(secondary_height * clamped_ratio * base_scale));
+
+    const u32 layout_width = primary_rect_width + secondary_rect_width;
+    const u32 layout_height = std::max(primary_rect_height, secondary_rect_height);
+    const u32 layout_left = (width - layout_width) / 2;
+    const u32 layout_top = (height - layout_height) / 2;
+
+    const Common::Rectangle<u32> primary_screen{layout_left, layout_top,
+                                                layout_left + primary_rect_width,
+                                                layout_top + primary_rect_height};
+    const Common::Rectangle<u32> secondary_screen{
+        primary_screen.right, layout_top, primary_screen.right + secondary_rect_width,
+        layout_top + secondary_rect_height};
+
+    res.top_screen = swapped ? secondary_screen : primary_screen;
+    res.bottom_screen = swapped ? primary_screen : secondary_screen;
     return res;
 }
 

@@ -43,6 +43,10 @@ public final class SettingsFile {
     public static final String KEY_USE_FENCE_SYNC = "use_fence_sync";
     public static final String KEY_CUSTOM_TEXTURES = "custom_textures";
     public static final String KEY_LAYOUT_OPTION = "layout_option";
+    public static final String KEY_LANDSCAPE_LAYOUT_OPTION = "landscape_layout_option";
+    public static final String KEY_LARGE_SCREEN_PROPORTION = "large_screen_proportion";
+    public static final String KEY_LANDSCAPE_LARGE_SCREEN_PROPORTION =
+        "landscape_large_screen_proportion";
     public static final String KEY_SHADER_TYPE = "shader_type";
     public static final String KEY_POST_PROCESSING_SHADER = "pp_shader_name";
     // Audio

@@ -119,6 +119,11 @@ void EmuWindow::UpdateFramebufferLayout(u32 width, u32 height) {
         case Settings::LayoutOption::LargeScreen:
             layout = Layout::LargeFrameLayout(width, height, Settings::values.swap_screen);
             break;
+        case Settings::LayoutOption::LargeScreenTop:
+            layout = Layout::LargeFrameLayoutTop(
+                width, height, Settings::values.swap_screen,
+                Settings::values.large_screen_proportion / 100.0f);
+            break;
         case Settings::LayoutOption::SideScreen:
             width -= safe_inset_left + safe_inset_right;
             layout = Layout::SideFrameLayout(width, height, Settings::values.swap_screen);
