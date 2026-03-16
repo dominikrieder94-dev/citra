@@ -2,6 +2,8 @@
 
 ## 2026-03-17
 - Verified state:
+  - `externals/libyuv` audit result: the preserved snapshot `0650e25412d6c47724bedac775835d661603d0a8` is effectively the older superproject-pinned upstream commit `5b3351bd07e83f9f9a4cb6629561331ecdb7c546`, with only five executable-bit-only mode changes on helper scripts.
+  - Practical implication: `libyuv` is not a meaningful custom fork and should be straightforward to normalize early in the externals cleanup.
   - Preservation commits now exist for the remaining dirty external repos:
     - `externals/libressl` at `ab327f02cd682101dd3af930b99e6ca40602e1ec`
     - `externals/libyuv` at `0650e25412d6c47724bedac775835d661603d0a8`
@@ -9,8 +11,8 @@
   - `externals/libyuv` still prints an unusual leading marker in `git submodule status`, but the nested repo is intact, active in `.git/config`, and its preservation commit is reachable locally.
   - The remaining required step to make these snapshots recoverable from the main repo is a superproject commit that records the updated gitlinks.
 - First next steps:
-  1. Commit the superproject gitlink updates for `externals/libressl`, `externals/libyuv`, and `externals/teakra` together with the preservation doc updates.
-  2. After that checkpoint exists, begin the externals audit/classification from a fully preserved baseline instead of from dirty nested repos.
+  1. Normalize `externals/libyuv` first; it appears reducible to the old pinned upstream commit plus at most mode-only helper-script changes.
+  2. After `libyuv`, continue the externals classification with `dynarmic`, `soundtouch`, and `teakra`.
 
 ## 2026-03-16
 - Verified state:

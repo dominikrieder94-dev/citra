@@ -72,6 +72,17 @@
   - commit the nested external repo first
   - then commit the updated gitlink in the superproject
 
+## 2026-03-17 libyuv audit
+- `externals/libyuv` is not a meaningful custom fork despite the alarming preservation diff against 2026 `origin/main`.
+- The preserved snapshot commit `0650e25412d6c47724bedac775835d661603d0a8` sits on top of upstream `30809ff64a9ca5e45f86439c0d474c2d3eef3d05`, but the tree content itself is effectively a rollback to the older superproject-pinned upstream commit `5b3351bd07e83f9f9a4cb6629561331ecdb7c546`.
+- The only remaining delta between the preserved snapshot and `5b3351bd07e83f9f9a4cb6629561331ecdb7c546` is five executable-bit-only mode changes on helper scripts:
+  - `cleanup_links.py`
+  - `source/test.sh`
+  - `tools_libyuv/autoroller/roll_deps.py`
+  - `tools_libyuv/autoroller/unittests/roll_deps_test.py`
+  - `tools_libyuv/get_landmines.py`
+- Practical consequence: `libyuv` should be one of the easiest externals to normalize, likely by returning to the old pinned upstream commit or by carrying a trivial mode-only patch if those executable bits matter locally.
+
 ## Practical debugging workflow
 - The recovered workflow is:
   1. build debug APK

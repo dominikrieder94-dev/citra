@@ -182,3 +182,11 @@
   - `externals/libressl`
   - `externals/libyuv`
   - `externals/teakra`
+
+## 2026-03-17 (audit libyuv)
+- Intent: Audit externals/libyuv against its preserved snapshot and prior base to classify whether the drift is an upstream update, local patch set, or replacement churn before normalization.
+- Outcome: Verified that the preserved `libyuv` snapshot `0650e25412d6c47724bedac775835d661603d0a8` is a one-off local commit on top of upstream `30809ff64a9ca5e45f86439c0d474c2d3eef3d05`, but the actual tree content matches the older superproject-expected commit `5b3351bd07e83f9f9a4cb6629561331ecdb7c546` exactly except for five executable-bit-only mode changes on helper scripts. This is not a broad custom fork and should be straightforward to normalize.
+- Files touched:
+  - `.codex/docs/HANDOVER.md`
+  - `.codex/docs/INSIGHTS.md`
+  - `.codex/docs/PROGRESS.md`
