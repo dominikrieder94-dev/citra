@@ -190,3 +190,11 @@
   - `.codex/docs/HANDOVER.md`
   - `.codex/docs/INSIGHTS.md`
   - `.codex/docs/PROGRESS.md`
+
+## 2026-03-17 (audit dynarmic)
+- Intent: Audit externals/dynarmic against the preserved snapshot and original expected gitlink to classify whether the drift is an upstream bump, custom patch stack, or unrelated replacement before normalization.
+- Outcome: Verified that the preserved `dynarmic` snapshot `86f70089e833eeb65956efdfcd2ff1dbb70ace9b` is a local commit on top of fork head `526227eebe1efff3fb14dbf494b9c5b44c2e9c1f`, not a clean upstream bump. The snapshot contains two layers: (1) a real local patch set touching build integration, fmt compatibility, and register allocation behavior; and (2) a large accidental vendoring of dynarmic's own nested `externals/*` submodules after deleting dynarmic's `.gitmodules`. The original superproject-expected commit `b6be02ea7fae63aa661ad00763ebd295d1348591` is not reachable in the current dynarmic fork history.
+- Files touched:
+  - `.codex/docs/HANDOVER.md`
+  - `.codex/docs/INSIGHTS.md`
+  - `.codex/docs/PROGRESS.md`

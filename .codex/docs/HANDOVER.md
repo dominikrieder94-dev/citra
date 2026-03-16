@@ -2,6 +2,8 @@
 
 ## 2026-03-17
 - Verified state:
+  - `externals/dynarmic` audit result: the preserved snapshot `86f70089e833eeb65956efdfcd2ff1dbb70ace9b` is not a clean dependency bump. It is a local commit on top of fork head `526227eebe1efff3fb14dbf494b9c5b44c2e9c1f` that combines a small real patch set with a large accidental vendoring of dynarmic's own nested `externals/*` submodules.
+  - The old superproject-expected dynarmic commit `b6be02ea7fae63aa661ad00763ebd295d1348591` is not reachable in the current dynarmic fork history, so future normalization must target the reachable fork baseline instead of assuming the original gitlink can be restored directly.
   - `externals/libyuv` audit result: the preserved snapshot `0650e25412d6c47724bedac775835d661603d0a8` is effectively the older superproject-pinned upstream commit `5b3351bd07e83f9f9a4cb6629561331ecdb7c546`, with only five executable-bit-only mode changes on helper scripts.
   - Practical implication: `libyuv` is not a meaningful custom fork and should be straightforward to normalize early in the externals cleanup.
   - Preservation commits now exist for the remaining dirty external repos:
@@ -12,7 +14,8 @@
   - The remaining required step to make these snapshots recoverable from the main repo is a superproject commit that records the updated gitlinks.
 - First next steps:
   1. Normalize `externals/libyuv` first; it appears reducible to the old pinned upstream commit plus at most mode-only helper-script changes.
-  2. After `libyuv`, continue the externals classification with `dynarmic`, `soundtouch`, and `teakra`.
+  2. For `externals/dynarmic`, separate the accidental nested-submodule vendoring from the small real patch set before attempting any runtime judgment on the remaining local changes.
+  3. After `libyuv` and dynarmic cleanup planning, continue the externals classification with `soundtouch` and `teakra`.
 
 ## 2026-03-16
 - Verified state:

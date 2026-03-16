@@ -83,6 +83,19 @@
   - `tools_libyuv/get_landmines.py`
 - Practical consequence: `libyuv` should be one of the easiest externals to normalize, likely by returning to the old pinned upstream commit or by carrying a trivial mode-only patch if those executable bits matter locally.
 
+## 2026-03-17 dynarmic audit
+- The original superproject-expected dynarmic commit `b6be02ea7fae63aa661ad00763ebd295d1348591` is not present in the currently configured dynarmic fork history, so normalization cannot simply assume that old gitlink is still reachable.
+- The preserved snapshot `86f70089e833eeb65956efdfcd2ff1dbb70ace9b` is a local commit directly on top of fork head `526227eebe1efff3fb14dbf494b9c5b44c2e9c1f`.
+- Most of the enormous diff is not core dynarmic logic. It comes from deleting dynarmic's own `.gitmodules` and inlining the contents of dynarmic's nested `externals/*` repos as normal tracked files.
+- After excluding that accidental vendoring, the real dynarmic-local delta is small and reviewable:
+  - CMake/build integration adjustments
+  - fmt formatter compatibility changes
+  - register allocation behavior changes in ARM64 and RISC-V backends
+  - CI/repository URL updates
+- Practical consequence: dynarmic normalization should be split into two steps:
+  - first remove the accidental nested-submodule vendoring and restore dynarmic's own external-management model
+  - then audit the small remaining local patch set on top of `526227eebe1efff3fb14dbf494b9c5b44c2e9c1f`
+
 ## Practical debugging workflow
 - The recovered workflow is:
   1. build debug APK
