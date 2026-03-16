@@ -12,6 +12,7 @@
 #include "core/cheats/cheats.h"
 #include "core/core.h"
 #include "core/frontend/applets/default_applets.h"
+#include "core/frontend/framebuffer_layout.h"
 #include "core/frontend/mic.h"
 #include "core/hle/service/am/am.h"
 #include "core/hle/service/cfg/cfg.h"
@@ -669,6 +670,21 @@ JNIEXPORT jintArray JNICALL Java_org_citra_emu_NativeLibrary_getRunningSettings(
     jintArray array = env->NewIntArray(i);
     env->SetIntArrayRegion(array, 0, i, settings);
     return array;
+}
+
+JNIEXPORT jint JNICALL Java_org_citra_emu_NativeLibrary_getLargeScreenTopAutoFitProportion(
+    JNIEnv* env, jclass obj) {
+    if (!s_render_window) {
+        return std::clamp(static_cast<int>(Settings::values.large_screen_proportion), 25, 100);
+    }
+
+    const auto& framebuffer_layout = s_render_window->GetFramebufferLayout();
+    if (framebuffer_layout.width == 0 || framebuffer_layout.height == 0) {
+        return std::clamp(static_cast<int>(Settings::values.large_screen_proportion), 25, 100);
+    }
+
+    return Layout::GetLargeFrameLayoutTopAndroidMaxFillProportion(
+        framebuffer_layout.width, framebuffer_layout.height, Settings::values.swap_screen);
 }
 
 JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_setRunningSettings(JNIEnv* env, jclass obj,

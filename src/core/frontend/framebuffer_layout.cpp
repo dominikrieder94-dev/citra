@@ -249,6 +249,27 @@ FramebufferLayout LargeFrameLayoutTopAndroid(u32 width, u32 height, bool swapped
     return res;
 }
 
+u16 GetLargeFrameLayoutTopAndroidMaxFillProportion(u32 width, u32 height, bool swapped) {
+    if (width == 0 || height == 0) {
+        return 75;
+    }
+
+    const float primary_height = swapped ? Core::kScreenBottomHeight : Core::kScreenTopHeight;
+    const float secondary_width = swapped ? Core::kScreenTopWidth : Core::kScreenBottomWidth;
+    const FramebufferLayout large_layout = LargeFrameLayoutAndroid(width, height, swapped);
+    const Common::Rectangle<u32>& large_primary =
+        swapped ? large_layout.bottom_screen : large_layout.top_screen;
+    const u32 remaining_width = width > large_primary.right ? width - large_primary.right : 0;
+
+    if (remaining_width == 0 || large_primary.GetHeight() == 0 || secondary_width == 0.0f) {
+        return 25;
+    }
+
+    const float primary_scale = static_cast<float>(large_primary.GetHeight()) / primary_height;
+    const float proportion = static_cast<float>(remaining_width) / (secondary_width * primary_scale);
+    return static_cast<u16>(std::clamp(std::round(proportion * 100.0f), 25.0f, 100.0f));
+}
+
 FramebufferLayout SideFrameLayout(u32 width, u32 height, bool swapped) {
     FramebufferLayout res{width, height, true, true, {}, {}};
     const float window_aspect_ratio = static_cast<float>(height) / width;

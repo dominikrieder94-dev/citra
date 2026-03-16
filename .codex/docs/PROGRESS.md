@@ -1,5 +1,20 @@
 # PROGRESS
 
+## 2026-03-16 (android top-layout max-fill quick action)
+- Intent: Add a quick Android UI action to set the top-layout proportion slider to the max-fill value automatically, then rebuild and deploy to the connected Galaxy S24+.
+- Outcome: Added a running-settings `Auto Fit` action for `Top Layout Size`. It calls a new native helper that calculates the exact proportion where the secondary screen just fills the remaining width beside the full-height Android large primary screen, then sets the existing slider to that value. Rebuilt `:app:assembleDebug` successfully and installed the new debug APK to device `R3CXB0SJ5GL`.
+- Files touched:
+  - `.codex/docs/INSIGHTS.md`
+  - `.codex/docs/HANDOVER.md`
+  - `.codex/docs/PROGRESS.md`
+  - `src/android/app/src/main/java/org/citra/emu/NativeLibrary.java`
+  - `src/android/app/src/main/java/org/citra/emu/ui/RunningSettingDialog.java`
+  - `src/android/app/src/main/res/layout/list_item_running_seekbar.xml`
+  - `src/android/app/src/main/res/values/strings.xml`
+  - `src/android/jni/main_android.cpp`
+  - `src/core/frontend/framebuffer_layout.cpp`
+  - `src/core/frontend/framebuffer_layout.h`
+
 ## 2026-03-16 (android top-layout dynamic ratio scaling)
 - Intent: Make Android `Large Screen (Top Aligned)` continue responding above the current slider saturation point by recomputing both screen sizes together, then rebuild and deploy to the connected Galaxy S24+.
 - Outcome: Updated `LargeFrameLayoutTopAndroid()` to use a two-stage Android layout solver. It now keeps the current full-height primary screen while the requested secondary screen still fits in the remaining width, then switches to a joint fit that shrinks the primary and keeps growing the secondary while preserving both aspect ratios and using the maximum available display area. Rebuilt `:app:assembleDebug` successfully and installed the new debug APK to device `R3CXB0SJ5GL`.

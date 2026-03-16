@@ -55,6 +55,8 @@
 - With that model, the slider affects only the secondary screen size. If the requested secondary size is wider than the remaining space, width becomes the cap rather than vertical envelope math.
 - To keep the slider useful past that cap, Android `Large Screen (Top Aligned)` needs a second stage: once the fixed-primary layout saturates, recompute both screens together against the full display bounds so the secondary can keep growing and the primary shrinks proportionally.
 - That second stage should preserve aspect ratios, use the full available width, and accept that some vertical slack becomes mathematically unavoidable on very large secondary ratios. Centering the recomputed block vertically is the least surprising fallback in that saturated range.
+- The exact "max fill" quick-set value is the boundary between those two stages: the secondary screen exactly fills the remaining width beside the full-height primary without forcing the primary to shrink yet.
+- That value depends on the live surface dimensions, so the correct place to expose `Auto Fit` is the in-game running dialog backed by a native calculation, not a static Java constant.
 
 ## Android build bootstrap
 - `citra_v2/src/android` needed `gradlew` and `gradlew.bat` restored for the existing Taskfile-based workflow to make sense.

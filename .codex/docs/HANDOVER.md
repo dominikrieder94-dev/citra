@@ -2,6 +2,7 @@
 
 ## 2026-03-16
 - Verified state:
+  - The running settings dialog now shows an `Auto Fit` quick action on `Top Layout Size`. It computes the live Android max-fill slider value natively from the current framebuffer size and sets the slider to the exact threshold where the secondary screen fills the remaining width beside the full-height primary screen.
   - Android `Large Screen (Top Aligned)` now has a two-stage Android-specific solver:
     - while the requested secondary screen still fits beside the full-height primary, the primary remains identical to Android `Large Screen`
     - once that width saturates, both screens are recomputed together so the secondary can keep growing and the primary shrinks proportionally
@@ -19,9 +20,9 @@
     - JNI round-trip plumbing for both values
   - Device-side runtime verification of that dialog is still pending because the connected phone remained on the lock screen during this session.
 - First next steps:
-  1. Launch a game on the Galaxy S24+ and confirm that Android `Large Screen (Top Aligned)` still matches `Large Screen` vertically at lower slider values.
-  2. Push `Top Layout Size` above the old saturation point and confirm that the secondary screen keeps growing while the primary screen now shrinks proportionally instead of the slider going inert.
-  3. If the saturated-range result feels off, capture a fresh screenshot and note whether the remaining problem is vertical centering, the threshold where shrinking begins, or the final max ratio behavior.
+  1. Launch a game on the Galaxy S24+ and confirm that tapping `Auto Fit` on `Top Layout Size` jumps to the expected max-fill value.
+  2. Confirm that manual slider movement still works below and above the auto-fit value, including the saturated range where the primary screen shrinks proportionally.
+  3. If desired later, decide whether the same quick action should also exist in the non-running Android settings UI; the current implementation is intentionally running-dialog only because it relies on live surface dimensions.
 
 ## 2026-03-15
 - Verified state:

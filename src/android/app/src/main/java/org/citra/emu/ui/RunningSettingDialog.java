@@ -484,6 +484,7 @@ public class RunningSettingDialog extends DialogFragment {
         private TextView mTextSettingName;
         private TextView mTextSettingValue;
         private SeekBar mSeekBar;
+        private Button mQuickActionButton;
         private final SeekBar.OnSeekBarChangeListener mOnSeekBarChangeListener;
 
         public SeekBarSettingViewHolder(View itemView) {
@@ -507,6 +508,8 @@ public class RunningSettingDialog extends DialogFragment {
             mTextSettingName = root.findViewById(R.id.text_setting_name);
             mTextSettingValue = root.findViewById(R.id.text_setting_value);
             mSeekBar = root.findViewById(R.id.seekbar);
+            mQuickActionButton = root.findViewById(R.id.button_quick_action);
+            mQuickActionButton.setOnClickListener(this);
         }
 
         @Override
@@ -518,18 +521,22 @@ public class RunningSettingDialog extends DialogFragment {
             switch (item.getSetting()) {
             case SettingsItem.SETTING_CONTROLLER_SCALE:
             case SettingsItem.SETTING_CONTROLLER_ALPHA:
+                mQuickActionButton.setVisibility(View.GONE);
                 mSeekBar.setMax(100);
                 mSeekBar.setProgress(clamp(item.getValue(), 0, 100));
                 break;
             case SettingsItem.SETTING_LARGE_SCREEN_PROPORTION:
+                mQuickActionButton.setVisibility(View.VISIBLE);
                 mSeekBar.setMax(75);
                 mSeekBar.setProgress(clamp(item.getValue(), 25, 100) - 25);
                 break;
             case SettingsItem.SETTING_FRAME_LIMIT:
+                mQuickActionButton.setVisibility(View.GONE);
                 mSeekBar.setMax(199);
                 mSeekBar.setProgress(clamp(item.getValue(), 1, 200) - 1);
                 break;
             default:
+                mQuickActionButton.setVisibility(View.GONE);
                 mSeekBar.setMax(100);
                 mSeekBar.setProgress(clamp(item.getValue(), 0, 100));
                 break;
@@ -540,7 +547,17 @@ public class RunningSettingDialog extends DialogFragment {
         }
 
         @Override
-        public void onClick(View clicked) {}
+        public void onClick(View clicked) {
+            if (mItem == null || clicked != mQuickActionButton) {
+                return;
+            }
+
+            if (mItem.getSetting() == SettingsItem.SETTING_LARGE_SCREEN_PROPORTION) {
+                final int autoFitValue =
+                    clamp(NativeLibrary.getLargeScreenTopAutoFitProportion(), 25, 100);
+                mSeekBar.setProgress(autoFitValue - 25);
+            }
+        }
 
         private void refreshProgress(int progress) {
             if (mItem == null) {
