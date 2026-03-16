@@ -54,3 +54,17 @@ Until each submodule is audited, the current dirty external state should be trea
 - The superproject already records reachable replacement remotes in `.gitmodules`.
 - That is not enough to reproduce the current working runtime, because several submodules have local content drift beyond a simple gitlink change.
 - The correct next step is comparison and minimization, not cleanup.
+
+## 2026-03-17 preservation follow-up
+
+Additional preservation commits created for the remaining dirty externals before cleanup:
+
+| Submodule | Previous checkout | Preservation snapshot |
+| --- | --- | --- |
+| `externals/libressl` | `88b8e41b71099fabc57813bc06d8bc1aba050a19` | `ab327f02cd682101dd3af930b99e6ca40602e1ec` |
+| `externals/libyuv` | `30809ff64a9ca5e45f86439c0d474c2d3eef3d05` | `0650e25412d6c47724bedac775835d661603d0a8` |
+| `externals/teakra` | `3d697a18df504f4677b65129d9ab14c7c597e3eb` | `be37f163e407f193dbe3394574554878da87285e` |
+
+Notes:
+- These are nested-repo preservation commits only until the superproject records the updated gitlinks.
+- `externals/libyuv` may still display an unusual marker in `git submodule status`; verify the nested repo directly if that output looks suspicious.

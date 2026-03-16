@@ -170,3 +170,15 @@
 
 ## 2026-03-16 (android top-layout max-fill quick action)
 - Intent: Add a quick Android UI action to set the top-layout proportion slider to the max-fill value automatically, then rebuild and deploy to the connected Galaxy S24+.
+
+## 2026-03-17 (external preservation checkpoint)
+- Intent: Preserve the remaining dirty externals in their own repos, then record the resulting submodule SHAs in the superproject so the current working dependency state is recoverable before cleanup.
+- Outcome: Created preservation commits in `externals/libressl`, `externals/libyuv`, and `externals/teakra`, then prepared the superproject to record those updated gitlinks. Preservation snapshot SHAs: `libressl`=`ab327f02cd682101dd3af930b99e6ca40602e1ec`, `libyuv`=`0650e25412d6c47724bedac775835d661603d0a8`, `teakra`=`be37f163e407f193dbe3394574554878da87285e`.
+- Files touched:
+  - `.codex/docs/HANDOVER.md`
+  - `.codex/docs/INSIGHTS.md`
+  - `.codex/docs/PROGRESS.md`
+  - `EXTERNALS_PRESERVATION.md`
+  - `externals/libressl`
+  - `externals/libyuv`
+  - `externals/teakra`

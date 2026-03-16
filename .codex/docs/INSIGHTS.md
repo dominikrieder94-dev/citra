@@ -67,6 +67,10 @@
 - The current working Android runtime still depends on dirty external states that are not fully represented by the superproject gitlinks.
 - Do not reset, clean, or realign submodules blindly.
 - See `EXTERNALS_PRESERVATION.md` for the current preservation table.
+- `git submodule status` may show a surprising leading marker for `externals/libyuv` even when the nested repo is present and usable; verify the nested repo directly before treating that as a failed preservation state.
+- A safe preservation checkpoint for a dirty external is two-layered:
+  - commit the nested external repo first
+  - then commit the updated gitlink in the superproject
 
 ## Practical debugging workflow
 - The recovered workflow is:
