@@ -1,8 +1,10 @@
 # TASKS
 
 ## Priority
-- [ ] Finish the screen-layout transfer by wiring `Large Screen (Top Aligned)` and the proportion slider into the in-game running-settings dialog, then verify the behavior on the Galaxy S24+.
-- [ ] Audit and classify dirty `externals/*` state without changing it.
+- [ ] Normalize the easy external bucket first: `libyuv`, `fmt`, `enet`, `teakra`, `nihstro`, and `xbyak`.
+- [ ] Repair or replace the broken `externals/inih/inih` preservation snapshot before any cleanup touches it.
+- [ ] Separate accidental vendoring from the real local patch set in `externals/dynarmic`.
+- [ ] Decide the target strategy for the heavy drifts in `externals/boost`, `externals/soundtouch`, and `externals/libressl`.
 - [ ] Define a reproducible bootstrap strategy that can recreate the current Android-working state.
 - [ ] Normalize Android build bootstrap so a fresh checkout can build from CLI without machine-specific assumptions: keep wrapper scripts, confirm `Taskfile.yml`, document prerequisites, and decide what belongs in version control.
 - [ ] Validate the current Android build/runtime on at least one representative set of games and record residual issues.
@@ -10,6 +12,8 @@
 - [ ] Remove or ignore local generated build logs so the worktree stays readable.
 
 ## Done
+- [x] Finish the screen-layout transfer by wiring `Large Screen (Top Aligned)` and the proportion slider into the in-game running-settings dialog, then verify the behavior on the Galaxy S24+. (2026-03-16)
+- [x] Audit and classify dirty `externals/*` state without changing it. (2026-03-17)
 - [x] Restore Android device boot and rendering on the maintained fork. (2026-03-15)
 - [x] Record current external preservation state before normalization. (2026-03-15)
 - [x] Establish repo-local operational docs under `.codex/docs/`. (2026-03-15)

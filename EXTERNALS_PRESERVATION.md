@@ -68,3 +68,28 @@ Additional preservation commits created for the remaining dirty externals before
 Notes:
 - These are nested-repo preservation commits only until the superproject records the updated gitlinks.
 - `externals/libyuv` may still display an unusual marker in `git submodule status`; verify the nested repo directly if that output looks suspicious.
+
+## 2026-03-17 audit classification follow-up
+
+Normalization buckets after the read-only audit pass:
+
+- Easy first:
+  - `externals/libyuv`
+  - `externals/fmt`
+  - `externals/enet`
+  - `externals/teakra`
+  - `externals/nihstro`
+  - `externals/xbyak`
+- Needs separation first:
+  - `externals/dynarmic`
+- Heavy manual review:
+  - `externals/boost`
+  - `externals/soundtouch`
+  - `externals/libressl`
+- Broken preservation snapshot:
+  - `externals/inih/inih`
+
+Notes:
+- `externals/boost` is a broad local import centered on Asio and Align, not a small patch stack.
+- `externals/soundtouch` and `externals/libressl` are large local tree replacements on top of newer fork heads.
+- `externals/inih/inih` is special: the preserved snapshot commit is an empty-tree deletion commit and must not be treated as a safe baseline.

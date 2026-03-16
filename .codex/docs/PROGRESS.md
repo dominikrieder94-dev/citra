@@ -198,3 +198,13 @@
   - `.codex/docs/HANDOVER.md`
   - `.codex/docs/INSIGHTS.md`
   - `.codex/docs/PROGRESS.md`
+
+## 2026-03-17 (audit remaining externals)
+- Intent: Audit the remaining preserved externals (`soundtouch`, `teakra`, `boost`, `fmt`, `enet`, `nihstro`, `libressl`, `externals/inih/inih`, and `xbyak`) to classify whether each drift is a clean bump, local patch stack, vendoring accident, or mostly irrelevant for Android normalization.
+- Outcome: Classified the remaining externals into normalization buckets. `fmt`, `enet`, `teakra`, `nihstro`, and `xbyak` are near-normalized already and differ from the old gitlinks only by tiny local patches, mode changes, or line-ending churn. `boost` is a broad local dependency import centered on Asio and Align, `soundtouch` and `libressl` are heavy local tree replacements on top of newer fork heads, and `externals/inih/inih` turned out to be the only actually broken preservation snapshot because its local preservation commit deletes the entire upstream tree. The audit is now complete enough to move from read-only classification into selective normalization planning.
+- Files touched:
+  - `.codex/docs/HANDOVER.md`
+  - `.codex/docs/INSIGHTS.md`
+  - `.codex/docs/PROGRESS.md`
+  - `.codex/docs/TASKS.md`
+  - `EXTERNALS_PRESERVATION.md`

@@ -2,20 +2,28 @@
 
 ## 2026-03-17
 - Verified state:
-  - `externals/dynarmic` audit result: the preserved snapshot `86f70089e833eeb65956efdfcd2ff1dbb70ace9b` is not a clean dependency bump. It is a local commit on top of fork head `526227eebe1efff3fb14dbf494b9c5b44c2e9c1f` that combines a small real patch set with a large accidental vendoring of dynarmic's own nested `externals/*` submodules.
-  - The old superproject-expected dynarmic commit `b6be02ea7fae63aa661ad00763ebd295d1348591` is not reachable in the current dynarmic fork history, so future normalization must target the reachable fork baseline instead of assuming the original gitlink can be restored directly.
-  - `externals/libyuv` audit result: the preserved snapshot `0650e25412d6c47724bedac775835d661603d0a8` is effectively the older superproject-pinned upstream commit `5b3351bd07e83f9f9a4cb6629561331ecdb7c546`, with only five executable-bit-only mode changes on helper scripts.
-  - Practical implication: `libyuv` is not a meaningful custom fork and should be straightforward to normalize early in the externals cleanup.
-  - Preservation commits now exist for the remaining dirty external repos:
-    - `externals/libressl` at `ab327f02cd682101dd3af930b99e6ca40602e1ec`
-    - `externals/libyuv` at `0650e25412d6c47724bedac775835d661603d0a8`
-    - `externals/teakra` at `be37f163e407f193dbe3394574554878da87285e`
-  - `externals/libyuv` still prints an unusual leading marker in `git submodule status`, but the nested repo is intact, active in `.git/config`, and its preservation commit is reachable locally.
-  - The remaining required step to make these snapshots recoverable from the main repo is a superproject commit that records the updated gitlinks.
+  - The superproject already anchors the preserved external snapshots in commit `c567f73a3`, and the externals classification pass is now complete enough to move from read-only auditing into selective cleanup planning.
+  - Easy normalization candidates:
+    - `externals/libyuv`: effectively the old gitlink plus five executable-bit-only helper-script changes
+    - `externals/fmt`: effectively the old gitlink plus two compile-definition lines and helper-script mode changes
+    - `externals/enet`: line-ending-only churn in `enet.dsp`
+    - `externals/teakra`: seven executable-bit-only mode changes
+    - `externals/nihstro`: only four files differ from the old gitlink
+    - `externals/xbyak`: line-ending-only churn in test scripts and docs, irrelevant for Android `arm64-v8a`
+  - Medium-risk cleanup candidate:
+    - `externals/dynarmic`: preserved snapshot `86f70089e833eeb65956efdfcd2ff1dbb70ace9b` mixes a small real patch set with a large accidental vendoring of dynarmic's nested `externals/*` submodules. The original expected gitlink is not reachable in the current fork history.
+  - Heavy manual-review candidates:
+    - `externals/boost`: broad local Boost import centered on Asio and Align
+    - `externals/soundtouch`: local tree replacement or rollback on top of newer fork head `9ef8458d8561d9471dd20e9619e3be4cfe564796`
+    - `externals/libressl`: large local tree replacement on top of newer fork head `88b8e41b71099fabc57813bc06d8bc1aba050a19`
+  - Broken preservation caveat:
+    - `externals/inih/inih` preservation snapshot `319893ccbe95662983177b589a6cb76f90cc8c65` is an empty-tree commit that deletes the entire upstream `inih` contents, so it is not a safe cleanup baseline.
+  - `externals/libyuv` still prints an unusual leading marker in `git submodule status`, but the nested repo is intact and its preserved commit is anchored by the superproject.
 - First next steps:
-  1. Normalize `externals/libyuv` first; it appears reducible to the old pinned upstream commit plus at most mode-only helper-script changes.
-  2. For `externals/dynarmic`, separate the accidental nested-submodule vendoring from the small real patch set before attempting any runtime judgment on the remaining local changes.
-  3. After `libyuv` and dynarmic cleanup planning, continue the externals classification with `soundtouch` and `teakra`.
+  1. Normalize the easy bucket first: `externals/libyuv`, `externals/fmt`, `externals/enet`, `externals/teakra`, `externals/nihstro`, and `externals/xbyak`.
+  2. Repair or replace the broken `externals/inih/inih` preservation snapshot before any submodule cleanup touches it.
+  3. For `externals/dynarmic`, remove the accidental nested-submodule vendoring first, then audit the small remaining real patch set.
+  4. Decide a target strategy for the heavy drifts in `externals/boost`, `externals/soundtouch`, and `externals/libressl` instead of trying to normalize them opportunistically.
 
 ## 2026-03-16
 - Verified state:

@@ -96,6 +96,22 @@
   - first remove the accidental nested-submodule vendoring and restore dynarmic's own external-management model
   - then audit the small remaining local patch set on top of `526227eebe1efff3fb14dbf494b9c5b44c2e9c1f`
 
+## 2026-03-17 remaining externals audit
+- `externals/boost`: the preserved snapshot `4cc38a77d7c5bfd0c73e3ceef8ef54e64387a2a2` is a single local commit directly on top of the old superproject-pinned commit `36603a1e665e849d29b1735a12c0a51284a10dd0`. The diff is broad, about 700 files, and is dominated by a Boost import centered on Asio and Align rather than a reviewable patch queue.
+- `externals/soundtouch`: the old gitlink `060181eaf273180d3a7e87349895bd0cb6ccbf4a` is not reachable in the current fork history. The preserved snapshot `26ea8b97eeb87427e5973cda012bd9074536f576` is a local commit on top of fork head `9ef8458d8561d9471dd20e9619e3be4cfe564796` that deletes or rewrites large parts of the project, including autotools files, Android-lib Gradle pieces, SoundStretch sources, and packaging assets. Treat this as a local tree replacement or rollback, not a narrow patch set.
+- `externals/fmt`: the preserved snapshot `c4c0c44c0210ddf7e40e2015359555405c3e7e53` is effectively the old gitlink `4b8f8fac96a7819f28f4be523ca10a2d5d8aaaf2` plus two `FMT_USE_USER_DEFINED_LITERALS=0` compile-definition lines in `CMakeLists.txt` and several executable-bit drops on helper scripts.
+- `externals/enet`: the preserved snapshot `d60539d6bf267393d73506d0cc16e8e099ff3ccb` differs from the old gitlink `39a72ab1990014eb399cee9d538fd529df99c6a0` only in `enet.dsp`. With `--ignore-space-at-eol`, the diff disappears, so this is effectively line-ending churn.
+- `externals/nihstro`: the preserved snapshot `c9af0af155514b5c12a6f2d9e2b10fb98ec66750` is almost normalized already. Relative to the old gitlink `fd69de1a1b960ec296cc67d32257b0f9e2d89ac6`, only four files differ: `examples/assembler/cube/source/_gs.s`, `examples/assembler/cube_lighting/source/_gs.s`, `include/nihstro/bit_field.h`, and `include/nihstro/shader_bytecode.h`.
+- `externals/teakra`: the preserved snapshot `be37f163e407f193dbe3394574554878da87285e` is effectively the old gitlink `e6ea0eae656c022d7878ffabc4e016b3e6f0c536` plus seven executable-bit-only mode changes on test and helper scripts.
+- `externals/xbyak`: the preserved snapshot `0c0903965053ef074da2d16d900fa59e0eeb0d60` differs from the old gitlink `1de435ed04c8e74775804da944d176baf0ce56e2` only in shell-script and documentation line endings. With `--ignore-space-at-eol`, the remaining visible diff collapses to four test shell scripts. This is low-risk and irrelevant for Android `arm64-v8a`.
+- `externals/libressl`: the preserved snapshot `ab327f02cd682101dd3af930b99e6ca40602e1ec` is a large local tree replacement on top of fork head `88b8e41b71099fabc57813bc06d8bc1aba050a19`, with about 947 files changed. This is not a mode-only cleanup candidate, but it is also not on the active Android runtime path.
+- `externals/inih/inih`: the actual submodule path matters. The preserved snapshot `319893ccbe95662983177b589a6cb76f90cc8c65` is an empty-tree commit on top of upstream `577ae2dee1f0d9c2d11c7f10375c1715f3d6940c` and deletes the entire upstream `inih` contents. That preservation snapshot is not actually safe and must not be normalized blindly.
+- Practical normalization buckets:
+  - Easy first: `libyuv`, `fmt`, `enet`, `teakra`, `nihstro`, `xbyak`
+  - Needs separation first: `dynarmic`
+  - Heavy manual review: `boost`, `soundtouch`, `libressl`
+  - Broken preservation snapshot: `externals/inih/inih`
+
 ## Practical debugging workflow
 - The recovered workflow is:
   1. build debug APK
