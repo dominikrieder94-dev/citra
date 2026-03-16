@@ -4,12 +4,12 @@
 - Verified state:
   - The superproject already anchors the preserved external snapshots in commit `c567f73a3`, and the externals classification pass is now complete enough to move from read-only auditing into selective cleanup planning.
   - Easy normalization candidates:
-    - `externals/libyuv`: effectively the old gitlink plus five executable-bit-only helper-script changes
     - `externals/fmt`: effectively the old gitlink plus two compile-definition lines and helper-script mode changes
     - `externals/enet`: line-ending-only churn in `enet.dsp`
     - `externals/teakra`: seven executable-bit-only mode changes
     - `externals/nihstro`: only four files differ from the old gitlink
     - `externals/xbyak`: line-ending-only churn in test scripts and docs, irrelevant for Android `arm64-v8a`
+  - `externals/libyuv` is now normalized to clean upstream commit `5b3351bd07e83f9f9a4cb6629561331ecdb7c546`. The removed local snapshot commit only carried five executable-bit-only helper-script changes, so this was a gitlink cleanup rather than a source-content change.
   - Medium-risk cleanup candidate:
     - `externals/dynarmic`: preserved snapshot `86f70089e833eeb65956efdfcd2ff1dbb70ace9b` mixes a small real patch set with a large accidental vendoring of dynarmic's nested `externals/*` submodules. The original expected gitlink is not reachable in the current fork history.
   - Heavy manual-review candidates:
@@ -18,9 +18,8 @@
     - `externals/libressl`: large local tree replacement on top of newer fork head `88b8e41b71099fabc57813bc06d8bc1aba050a19`
   - Broken preservation caveat:
     - `externals/inih/inih` preservation snapshot `319893ccbe95662983177b589a6cb76f90cc8c65` is an empty-tree commit that deletes the entire upstream `inih` contents, so it is not a safe cleanup baseline.
-  - `externals/libyuv` still prints an unusual leading marker in `git submodule status`, but the nested repo is intact and its preserved commit is anchored by the superproject.
 - First next steps:
-  1. Normalize the easy bucket first: `externals/libyuv`, `externals/fmt`, `externals/enet`, `externals/teakra`, `externals/nihstro`, and `externals/xbyak`.
+  1. Continue with the remaining easy bucket: `externals/fmt`, `externals/enet`, `externals/teakra`, `externals/nihstro`, and `externals/xbyak`.
   2. Repair or replace the broken `externals/inih/inih` preservation snapshot before any submodule cleanup touches it.
   3. For `externals/dynarmic`, remove the accidental nested-submodule vendoring first, then audit the small remaining real patch set.
   4. Decide a target strategy for the heavy drifts in `externals/boost`, `externals/soundtouch`, and `externals/libressl` instead of trying to normalize them opportunistically.

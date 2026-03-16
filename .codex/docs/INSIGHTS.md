@@ -112,6 +112,11 @@
   - Heavy manual review: `boost`, `soundtouch`, `libressl`
   - Broken preservation snapshot: `externals/inih/inih`
 
+## 2026-03-17 libyuv normalization
+- `externals/libyuv` has now been normalized by rewinding the superproject gitlink from the preserved local snapshot `0650e25412d6c47724bedac775835d661603d0a8` to the clean upstream commit `5b3351bd07e83f9f9a4cb6629561331ecdb7c546`.
+- This normalization intentionally discards only the five executable-bit-only helper-script changes identified during audit; no Android-relevant source content changed.
+- Because the normalized tree content already matched the old expected source state, no Android rebuild was required to justify this step. Rebuild only if a later dependency normalization touches actual code.
+
 ## Practical debugging workflow
 - The recovered workflow is:
   1. build debug APK

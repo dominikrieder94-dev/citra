@@ -208,3 +208,14 @@
   - `.codex/docs/PROGRESS.md`
   - `.codex/docs/TASKS.md`
   - `EXTERNALS_PRESERVATION.md`
+
+## 2026-03-17 (normalize libyuv)
+- Intent: Normalize `externals/libyuv` first by replacing the preserved local snapshot gitlink with the clean upstream commit that already matches its content, then record the result in the repo docs.
+- Outcome: Rewound `externals/libyuv` from the preserved local snapshot `0650e25412d6c47724bedac775835d661603d0a8` to the clean upstream commit `5b3351bd07e83f9f9a4cb6629561331ecdb7c546`. This drops only the five executable-bit-only helper-script changes identified during audit and leaves the actual source tree aligned with the old superproject expectation. No rebuild was run because the normalized tree content is unchanged for Android-relevant source files.
+- Files touched:
+  - `.codex/docs/HANDOVER.md`
+  - `.codex/docs/INSIGHTS.md`
+  - `.codex/docs/PROGRESS.md`
+  - `.codex/docs/TASKS.md`
+  - `EXTERNALS_PRESERVATION.md`
+  - `externals/libyuv`

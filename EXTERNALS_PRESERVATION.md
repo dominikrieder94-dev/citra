@@ -74,7 +74,6 @@ Notes:
 Normalization buckets after the read-only audit pass:
 
 - Easy first:
-  - `externals/libyuv`
   - `externals/fmt`
   - `externals/enet`
   - `externals/teakra`
@@ -93,3 +92,4 @@ Notes:
 - `externals/boost` is a broad local import centered on Asio and Align, not a small patch stack.
 - `externals/soundtouch` and `externals/libressl` are large local tree replacements on top of newer fork heads.
 - `externals/inih/inih` is special: the preserved snapshot commit is an empty-tree deletion commit and must not be treated as a safe baseline.
+- `externals/libyuv` has already been normalized back to clean upstream commit `5b3351bd07e83f9f9a4cb6629561331ecdb7c546`; the preserved local snapshot remains recoverable in nested history as `0650e25412d6c47724bedac775835d661603d0a8`.
