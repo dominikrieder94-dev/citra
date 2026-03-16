@@ -10,6 +10,7 @@
     - `externals/nihstro`: only four files differ from the old gitlink
     - `externals/xbyak`: line-ending-only churn in test scripts and docs, irrelevant for Android `arm64-v8a`
   - `externals/libyuv` is now normalized to clean upstream commit `5b3351bd07e83f9f9a4cb6629561331ecdb7c546`. The removed local snapshot commit only carried five executable-bit-only helper-script changes, so this was a gitlink cleanup rather than a source-content change.
+  - `externals/enet`, `externals/teakra`, and `externals/xbyak` are now normalized to clean upstream commits `39a72ab1990014eb399cee9d538fd529df99c6a0`, `e6ea0eae656c022d7878ffabc4e016b3e6f0c536`, and `1de435ed04c8e74775804da944d176baf0ce56e2` respectively. These rewinds remove only line-ending or executable-bit churn.
   - Medium-risk cleanup candidate:
     - `externals/dynarmic`: preserved snapshot `86f70089e833eeb65956efdfcd2ff1dbb70ace9b` mixes a small real patch set with a large accidental vendoring of dynarmic's nested `externals/*` submodules. The original expected gitlink is not reachable in the current fork history.
   - Heavy manual-review candidates:
@@ -19,7 +20,7 @@
   - Broken preservation caveat:
     - `externals/inih/inih` preservation snapshot `319893ccbe95662983177b589a6cb76f90cc8c65` is an empty-tree commit that deletes the entire upstream `inih` contents, so it is not a safe cleanup baseline.
 - First next steps:
-  1. Continue with the remaining easy bucket: `externals/fmt`, `externals/enet`, `externals/teakra`, `externals/nihstro`, and `externals/xbyak`.
+  1. Continue with the remaining easy bucket that still has real content deltas: `externals/fmt` and `externals/nihstro`.
   2. Repair or replace the broken `externals/inih/inih` preservation snapshot before any submodule cleanup touches it.
   3. For `externals/dynarmic`, remove the accidental nested-submodule vendoring first, then audit the small remaining real patch set.
   4. Decide a target strategy for the heavy drifts in `externals/boost`, `externals/soundtouch`, and `externals/libressl` instead of trying to normalize them opportunistically.

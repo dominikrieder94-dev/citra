@@ -219,3 +219,16 @@
   - `.codex/docs/TASKS.md`
   - `EXTERNALS_PRESERVATION.md`
   - `externals/libyuv`
+
+## 2026-03-17 (normalize mode and line-ending externals)
+- Intent: Continue the easy-bucket cleanup by normalizing `externals/enet`, `externals/teakra`, and `externals/xbyak`, whose audited drift was limited to line-ending churn or executable-bit-only mode changes.
+- Outcome: Rewound `externals/enet` to `39a72ab1990014eb399cee9d538fd529df99c6a0`, `externals/teakra` to `e6ea0eae656c022d7878ffabc4e016b3e6f0c536`, and `externals/xbyak` to `1de435ed04c8e74775804da944d176baf0ce56e2`. These cleanups drop only line-ending churn or executable-bit-only mode changes and do not alter Android-relevant source behavior.
+- Files touched:
+  - `.codex/docs/HANDOVER.md`
+  - `.codex/docs/INSIGHTS.md`
+  - `.codex/docs/PROGRESS.md`
+  - `.codex/docs/TASKS.md`
+  - `EXTERNALS_PRESERVATION.md`
+  - `externals/enet`
+  - `externals/teakra`
+  - `externals/xbyak`

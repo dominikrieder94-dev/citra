@@ -75,10 +75,7 @@ Normalization buckets after the read-only audit pass:
 
 - Easy first:
   - `externals/fmt`
-  - `externals/enet`
-  - `externals/teakra`
   - `externals/nihstro`
-  - `externals/xbyak`
 - Needs separation first:
   - `externals/dynarmic`
 - Heavy manual review:
@@ -93,3 +90,6 @@ Notes:
 - `externals/soundtouch` and `externals/libressl` are large local tree replacements on top of newer fork heads.
 - `externals/inih/inih` is special: the preserved snapshot commit is an empty-tree deletion commit and must not be treated as a safe baseline.
 - `externals/libyuv` has already been normalized back to clean upstream commit `5b3351bd07e83f9f9a4cb6629561331ecdb7c546`; the preserved local snapshot remains recoverable in nested history as `0650e25412d6c47724bedac775835d661603d0a8`.
+- `externals/enet` has already been normalized back to clean upstream commit `39a72ab1990014eb399cee9d538fd529df99c6a0`; the preserved local snapshot remains recoverable in nested history as `d60539d6bf267393d73506d0cc16e8e099ff3ccb`.
+- `externals/teakra` has already been normalized back to clean upstream commit `e6ea0eae656c022d7878ffabc4e016b3e6f0c536`; the preserved local snapshot remains recoverable in nested history as `be37f163e407f193dbe3394574554878da87285e`.
+- `externals/xbyak` has already been normalized back to clean upstream commit `1de435ed04c8e74775804da944d176baf0ce56e2`; the preserved local snapshot remains recoverable in nested history as `0c0903965053ef074da2d16d900fa59e0eeb0d60`.

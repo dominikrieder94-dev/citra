@@ -1,7 +1,7 @@
 # TASKS
 
 ## Priority
-- [ ] Normalize the remaining easy external bucket: `fmt`, `enet`, `teakra`, `nihstro`, and `xbyak`.
+- [ ] Normalize the remaining easy external bucket with actual content drift: `fmt` and `nihstro`.
 - [ ] Repair or replace the broken `externals/inih/inih` preservation snapshot before any cleanup touches it.
 - [ ] Separate accidental vendoring from the real local patch set in `externals/dynarmic`.
 - [ ] Decide the target strategy for the heavy drifts in `externals/boost`, `externals/soundtouch`, and `externals/libressl`.
@@ -12,6 +12,7 @@
 - [ ] Remove or ignore local generated build logs so the worktree stays readable.
 
 ## Done
+- [x] Normalize `externals/enet`, `externals/teakra`, and `externals/xbyak` back to their clean upstream commits. (2026-03-17)
 - [x] Normalize `externals/libyuv` back to the clean upstream commit already matching its source content. (2026-03-17)
 - [x] Finish the screen-layout transfer by wiring `Large Screen (Top Aligned)` and the proportion slider into the in-game running-settings dialog, then verify the behavior on the Galaxy S24+. (2026-03-16)
 - [x] Audit and classify dirty `externals/*` state without changing it. (2026-03-17)

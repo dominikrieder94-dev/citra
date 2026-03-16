@@ -117,6 +117,12 @@
 - This normalization intentionally discards only the five executable-bit-only helper-script changes identified during audit; no Android-relevant source content changed.
 - Because the normalized tree content already matched the old expected source state, no Android rebuild was required to justify this step. Rebuild only if a later dependency normalization touches actual code.
 
+## 2026-03-17 enet, teakra, and xbyak normalization
+- `externals/enet` has now been normalized back to clean upstream commit `39a72ab1990014eb399cee9d538fd529df99c6a0`. The removed drift was only line-ending churn in `enet.dsp`.
+- `externals/teakra` has now been normalized back to clean upstream commit `e6ea0eae656c022d7878ffabc4e016b3e6f0c536`. The removed drift was only seven executable-bit-only mode changes on helper scripts.
+- `externals/xbyak` has now been normalized back to clean upstream commit `1de435ed04c8e74775804da944d176baf0ce56e2`. The removed drift was limited to shell-script and documentation line-ending churn and is irrelevant for Android `arm64-v8a`.
+- These three submodule cleanups are safe to batch because none of them changed functional source content on the active Android runtime path.
+
 ## Practical debugging workflow
 - The recovered workflow is:
   1. build debug APK
