@@ -1,5 +1,28 @@
 # HANDOVER
 
+## 2026-03-16
+- Verified state:
+  - Android `Large Screen (Top Aligned)` now has a two-stage Android-specific solver:
+    - while the requested secondary screen still fits beside the full-height primary, the primary remains identical to Android `Large Screen`
+    - once that width saturates, both screens are recomputed together so the secondary can keep growing and the primary shrinks proportionally
+  - Android `Large Screen (Top Aligned)` now uses `LargeFrameLayoutTopAndroid()` instead of the shared top-layout helper, so its primary screen matches Android `Large Screen` exactly and fills the same vertical extent.
+  - In Android `Large Screen (Top Aligned)`, the slider now scales only the secondary screen, which is top-aligned inside the remaining width to the right of the full-height primary screen.
+  - The emulator activity already runs fullscreen with `windowLayoutInDisplayCutoutMode=shortEdges`; the previously visible right-side border on Android `Large Screen` was a layout-placement issue rather than an Android surface-size issue.
+  - `EmulationActivity` now explicitly disables decor fitting and reapplies cutout mode before attaching the emulation view so the `SurfaceView` itself can extend into cutout space.
+  - Android now applies a post-layout right flush for `Large Screen` and `Large Screen (Top Aligned)` and skips the usual left safe-inset push for those layouts, so they can span the full physical width including the camera-hole side.
+  - Android `Large Screen` now uses `LargeFrameLayoutAndroid()`, which keeps the primary screen at maximum height and sizes the secondary screen from the remaining width instead of using the legacy fixed-quarter secondary size.
+  - `org.citra.emu.debug` rebuilt successfully from the current `fix/make-build-possible-again` worktree on March 16, 2026.
+  - The debug APK installed successfully to device `R3CXB0SJ5GL`.
+  - Source inspection shows the current Android running-settings dialog code already contains:
+    - `Large Screen (Top Aligned)` as a running layout option
+    - the running large-screen proportion seekbar
+    - JNI round-trip plumbing for both values
+  - Device-side runtime verification of that dialog is still pending because the connected phone remained on the lock screen during this session.
+- First next steps:
+  1. Launch a game on the Galaxy S24+ and confirm that Android `Large Screen (Top Aligned)` still matches `Large Screen` vertically at lower slider values.
+  2. Push `Top Layout Size` above the old saturation point and confirm that the secondary screen keeps growing while the primary screen now shrinks proportionally instead of the slider going inert.
+  3. If the saturated-range result feels off, capture a fresh screenshot and note whether the remaining problem is vertical centering, the threshold where shrinking begins, or the final max ratio behavior.
+
 ## 2026-03-15
 - Verified state:
   - `citra_v2` is now the intended maintained fork.

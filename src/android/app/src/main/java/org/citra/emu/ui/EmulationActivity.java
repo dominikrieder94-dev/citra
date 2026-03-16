@@ -20,8 +20,10 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.Surface;
 import android.view.View;
+import android.view.WindowManager;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.WindowCompat;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -97,6 +99,18 @@ public final class EmulationActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            WindowManager.LayoutParams attrs = getWindow().getAttributes();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                attrs.layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
+            } else {
+                attrs.layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+            }
+            getWindow().setAttributes(attrs);
+        }
         android.util.Log.i("citra", "EmulationActivity.onCreate savedInstanceState=" + (savedInstanceState != null));
         setContentView(R.layout.activity_emulation);
         sInstance = new WeakReference<>(this);

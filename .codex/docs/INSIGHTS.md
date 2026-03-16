@@ -26,6 +26,36 @@
   - the in-game running-settings dialog still shows only the old layout options
 - Treat that as an Android UI wiring gap, not as a shared-layout math failure.
 
+## 2026-03-16 running-settings follow-up
+- The current `RunningSettingDialog` worktree already includes a five-option `SETTING_SCREEN_LAYOUT` mapping with `Large Screen (Top Aligned)` and a `SETTING_LARGE_SCREEN_PROPORTION` seekbar item.
+- `NativeLibrary.getRunningSettings()` and `setRunningSettings()` already round-trip `layout_option` and `large_screen_proportion` for the running dialog.
+- As of this check, the remaining uncertainty is runtime verification on device, not obviously missing Java/JNI wiring.
+
+## 2026-03-16 top-aligned layout sizing
+- `Large Screen (Top Aligned)` was scaling against its full combined width, which let it expand farther horizontally than the original `Large Screen` layout on wide Android displays.
+- Reusing the original `Large Screen` layout's horizontal width envelope is the right constraint for this mode; it preserves the top-aligned composition without pushing the secondary screen against the physical display edge.
+- Reusing the original `Large Screen` layout's vertical envelope and top-left anchor as well keeps the top-aligned mode inside the same overall bounding box, which is a better match for Android device expectations than independently centering it.
+- When the slider changes, the top-aligned composition will not always fill the full original `Large Screen` height while preserving aspect ratio. Centering the overall layout vertically within that bounded height is the correct compromise.
+- If the layout should visually reach the same right edge as `Large Screen`, keep the existing size cap but anchor the composed layout block to the original `Large Screen` right boundary instead of the left boundary.
+
+## 2026-03-16 Android large-layout placement
+- The emulator activity already requests fullscreen rendering and display-cutout usage; the visible right-side border was not caused by the app surface being letterboxed by Android.
+- The remaining border came from `Large Screen` layout placement inside the fullscreen surface.
+- Matching the original Android app more closely means shifting `Large Screen` and `Large Screen (Top Aligned)` to the usable right edge on Android after framebuffer layout calculation.
+- To use the left camera-hole side as well, Android `Large Screen` and `Large Screen (Top Aligned)` must not apply the usual left safe-inset push; otherwise they can never span the full physical width.
+- If a left gap still remains after removing the layout-side safe-inset push, the next Android-side check is decor fitting: the emulation activity must disable system-window fitting so the `SurfaceView` itself extends into cutout space.
+- If custom layout can reach the left edge but preset `Large Screen` still cannot, that proves the remaining gap is in preset layout math, not in the Android surface bounds.
+- The legacy `Large Screen` math fixes the secondary screen at quarter size, which leaves unused horizontal space on wide Android phones. An Android-specific variant that keeps the primary screen at max height and sizes the secondary screen from the remaining width matches the original app more closely.
+- Android safe-inset translation can also leave preset-only vertical slack. For Android `Large Screen` and `Large Screen (Top Aligned)`, top safe-inset translation should be treated the same way as left safe-inset translation: disabled when the goal is full cutout-side utilization.
+
+## 2026-03-16 Android top-layout full-height primary
+- The remaining top/bottom border on Android `Large Screen (Top Aligned)` was not an inset problem once `Large Screen` already looked correct.
+- The actual mismatch was that Android `Large Screen (Top Aligned)` still used the shared `LargeFrameLayoutTop()` math, while Android `Large Screen` had already moved to its own full-height helper.
+- The correct Android behavior is to reuse the Android `Large Screen` primary rectangle exactly, then size only the secondary screen from the remaining width and top-align it. That keeps the primary screen at full height regardless of the slider.
+- With that model, the slider affects only the secondary screen size. If the requested secondary size is wider than the remaining space, width becomes the cap rather than vertical envelope math.
+- To keep the slider useful past that cap, Android `Large Screen (Top Aligned)` needs a second stage: once the fixed-primary layout saturates, recompute both screens together against the full display bounds so the secondary can keep growing and the primary shrinks proportionally.
+- That second stage should preserve aspect ratios, use the full available width, and accept that some vertical slack becomes mathematically unavoidable on very large secondary ratios. Centering the recomputed block vertically is the least surprising fallback in that saturated range.
+
 ## Android build bootstrap
 - `citra_v2/src/android` needed `gradlew` and `gradlew.bat` restored for the existing Taskfile-based workflow to make sense.
 - The successful local build path is now `cmd /c gradlew.bat :app:assembleDebug --stacktrace` from `src/android`.
