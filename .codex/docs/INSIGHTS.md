@@ -129,6 +129,11 @@
 - `externals/nihstro` cannot be normalized by simple rewind. Reverting it to `fd69de1a1b960ec296cc67d32257b0f9e2d89ac6` fails Android compilation in `include/nihstro/shader_bytecode.h` because the older code specializes `std::make_unsigned`, which current libc++ explicitly forbids.
 - The preserved `nihstro` patches are not cosmetic. At minimum, the `BitFieldStorageType` refactor and the extra `return 0;` in `SourceRegister::GetIndex()` are part of the current working Android toolchain compatibility story.
 
+## 2026-03-17 inih repair
+- `externals/inih/inih` was not merely dirty; the superproject was pinned to a broken local commit `319893ccbe95662983177b589a6cb76f90cc8c65` that deleted the entire upstream tree.
+- Rewinding it to the clean historical gitlink `2023872dfffb38b6a98f2c45a0eb25652aaea91f` restores the expected source layout (`ini.c`, `ini.h`, `cpp/INIReader.*`, examples, tests).
+- Although `inih` is not on the active Android runtime path, Android `:app:assembleDebug` still passes after the repair, which confirms the cleanup did not introduce broader build-system fallout.
+
 ## Practical debugging workflow
 - The recovered workflow is:
   1. build debug APK

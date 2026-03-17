@@ -12,6 +12,7 @@
   - `externals/libyuv` is now normalized to clean upstream commit `5b3351bd07e83f9f9a4cb6629561331ecdb7c546`. The removed local snapshot commit only carried five executable-bit-only helper-script changes, so this was a gitlink cleanup rather than a source-content change.
   - `externals/fmt` is now normalized to clean upstream commit `4b8f8fac96a7819f28f4be523ca10a2d5d8aaaf2`. Android `:app:assembleDebug` still succeeds after removing the old local compile-definition patch, so that drift was not actually required for the current build.
   - `externals/enet`, `externals/teakra`, and `externals/xbyak` are now normalized to clean upstream commits `39a72ab1990014eb399cee9d538fd529df99c6a0`, `e6ea0eae656c022d7878ffabc4e016b3e6f0c536`, and `1de435ed04c8e74775804da944d176baf0ce56e2` respectively. These rewinds remove only line-ending or executable-bit churn.
+  - `externals/inih/inih` is now repaired to clean historical commit `2023872dfffb38b6a98f2c45a0eb25652aaea91f`. The previous superproject gitlink pointed at a broken empty-tree local commit `319893ccbe95662983177b589a6cb76f90cc8c65`.
   - `externals/nihstro` is not a safe rewind candidate. Reverting it to the old gitlink `fd69de1a1b960ec296cc67d32257b0f9e2d89ac6` breaks Android compilation because current libc++ rejects the old `std::make_unsigned` specializations in `include/nihstro/shader_bytecode.h`. The preserved snapshot `c9af0af155514b5c12a6f2d9e2b10fb98ec66750` was restored and the Android build passes again.
   - Medium-risk cleanup candidate:
     - `externals/dynarmic`: preserved snapshot `86f70089e833eeb65956efdfcd2ff1dbb70ace9b` mixes a small real patch set with a large accidental vendoring of dynarmic's nested `externals/*` submodules. The original expected gitlink is not reachable in the current fork history.
@@ -19,13 +20,10 @@
     - `externals/boost`: broad local Boost import centered on Asio and Align
     - `externals/soundtouch`: local tree replacement or rollback on top of newer fork head `9ef8458d8561d9471dd20e9619e3be4cfe564796`
     - `externals/libressl`: large local tree replacement on top of newer fork head `88b8e41b71099fabc57813bc06d8bc1aba050a19`
-  - Broken preservation caveat:
-    - `externals/inih/inih` preservation snapshot `319893ccbe95662983177b589a6cb76f90cc8c65` is an empty-tree commit that deletes the entire upstream `inih` contents, so it is not a safe cleanup baseline.
 - First next steps:
   1. Treat `externals/nihstro` as a required local compatibility patch until its changes are separated, documented, or upstreamed.
-  2. Repair or replace the broken `externals/inih/inih` preservation snapshot before any submodule cleanup touches it.
-  3. For `externals/dynarmic`, remove the accidental nested-submodule vendoring first, then audit the small remaining real patch set.
-  4. Decide a target strategy for the heavy drifts in `externals/boost`, `externals/soundtouch`, and `externals/libressl` instead of trying to normalize them opportunistically.
+  2. For `externals/dynarmic`, remove the accidental nested-submodule vendoring first, then audit the small remaining real patch set.
+  3. Decide a target strategy for the heavy drifts in `externals/boost`, `externals/soundtouch`, and `externals/libressl` instead of trying to normalize them opportunistically.
 
 ## 2026-03-16
 - Verified state:

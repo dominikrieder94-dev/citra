@@ -260,3 +260,14 @@
 - Outcome: Verified connected device `R3CXB0SJ5GL`, confirmed the current `app-debug.apk` artifact exists for `253b715fc`, and installed it successfully with `adb -s R3CXB0SJ5GL install -r`.
 - Files touched:
   - `.codex/docs/PROGRESS.md`
+
+## 2026-03-17 (repair inih submodule)
+- Intent: Repair `externals/inih/inih` by removing the broken empty-tree preservation snapshot from the active superproject state and restoring the clean historical gitlink the repo originally expected.
+- Outcome: Rewound `externals/inih/inih` from the broken empty-tree commit `319893ccbe95662983177b589a6cb76f90cc8c65` back to the clean historical gitlink `2023872dfffb38b6a98f2c45a0eb25652aaea91f`. This restores the actual upstream source tree under `externals/inih/inih/` and removes the last known broken preservation state from the superproject. `cmd /c gradlew.bat :app:assembleDebug --stacktrace` still succeeds afterward.
+- Files touched:
+  - `.codex/docs/HANDOVER.md`
+  - `.codex/docs/INSIGHTS.md`
+  - `.codex/docs/PROGRESS.md`
+  - `.codex/docs/TASKS.md`
+  - `EXTERNALS_PRESERVATION.md`
+  - `externals/inih/inih`

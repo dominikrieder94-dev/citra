@@ -2,7 +2,6 @@
 
 ## Priority
 - [ ] Classify and preserve `externals/nihstro` as an intentional local compatibility patch instead of treating it as a simple rewind candidate.
-- [ ] Repair or replace the broken `externals/inih/inih` preservation snapshot before any cleanup touches it.
 - [ ] Separate accidental vendoring from the real local patch set in `externals/dynarmic`.
 - [ ] Decide the target strategy for the heavy drifts in `externals/boost`, `externals/soundtouch`, and `externals/libressl`.
 - [ ] Define a reproducible bootstrap strategy that can recreate the current Android-working state.
@@ -12,6 +11,7 @@
 - [ ] Remove or ignore local generated build logs so the worktree stays readable.
 
 ## Done
+- [x] Repair `externals/inih/inih` by restoring the clean historical gitlink in place of the broken empty-tree snapshot. (2026-03-17)
 - [x] Normalize `externals/fmt` back to the clean upstream commit and verify Android `:app:assembleDebug` still passes. (2026-03-17)
 - [x] Normalize `externals/enet`, `externals/teakra`, and `externals/xbyak` back to their clean upstream commits. (2026-03-17)
 - [x] Normalize `externals/libyuv` back to the clean upstream commit already matching its source content. (2026-03-17)
