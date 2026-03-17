@@ -395,3 +395,12 @@
 - Files touched:
   - `.codex/docs/PROGRESS.md`
 
+
+## 2026-03-18 (prepare main repo for published reproducibility)
+- Intent: Update the superproject to use the owner's published submodule forks and align the main repository remote state so a fresh clone can fetch the required dependency commits from reachable GitHub remotes.
+- Outcome: Verified the pinned submodule SHAs for `externals/boost`, `externals/dynarmic`, and `externals/nihstro` are all reachable from the owner's fork `master` branches, then updated `.gitmodules` to point those three submodules at `dominikrieder94-dev/*` instead of the old upstream remotes. Ran `git submodule sync --recursive` so the local checkout now matches the publishable configuration, and switched the local main-repo remotes so `origin` is `https://github.com/dominikrieder94-dev/citra.git` and the old MMJ base remains available as `upstream`.
+- Files touched:
+  - `.codex/docs/HANDOVER.md`
+  - `.codex/docs/PROGRESS.md`
+  - `.gitmodules`
+

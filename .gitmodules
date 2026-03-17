@@ -1,9 +1,9 @@
 [submodule "boost"]
     path = externals/boost
-	url = https://github.com/azahar-emu/ext-boost.git
+	url = https://github.com/dominikrieder94-dev/ext-boost.git
 [submodule "nihstro"]
     path = externals/nihstro
-    url = https://github.com/neobrain/nihstro.git
+    url = https://github.com/dominikrieder94-dev/nihstro.git
 [submodule "soundtouch"]
     path = externals/soundtouch
 	url = https://github.com/azahar-emu/soundtouch.git
@@ -12,7 +12,7 @@
     url = https://github.com/philsquared/Catch.git
 [submodule "dynarmic"]
     path = externals/dynarmic
-	url = https://github.com/azahar-emu/dynarmic.git
+	url = https://github.com/dominikrieder94-dev/dynarmic.git
 [submodule "xbyak"]
     path = externals/xbyak
     url = https://github.com/herumi/xbyak.git

@@ -1,5 +1,25 @@
 # HANDOVER
 
+## 2026-03-18
+- Verified state:
+  - The main repo is now aligned for published reproducibility against the owner's GitHub repos rather than only local submodule state.
+  - `.gitmodules` now points these active custom dependency gitlinks at the owner's forks:
+    - `externals/boost` -> `https://github.com/dominikrieder94-dev/ext-boost.git`
+    - `externals/dynarmic` -> `https://github.com/dominikrieder94-dev/dynarmic.git`
+    - `externals/nihstro` -> `https://github.com/dominikrieder94-dev/nihstro.git`
+  - The currently pinned commits remain unchanged and are reachable from the owner's fork `master` branches:
+    - `externals/boost` -> `4cc38a77d7c5bfd0c73e3ceef8ef54e64387a2a2`
+    - `externals/dynarmic` -> `384d240134f74ebaed6bd748d9662069dcaf3a68`
+    - `externals/nihstro` -> `b2291a63a6bdbb095b68dcffde6be3c73887cf17`
+  - The local main-repo remote configuration is now aligned for owner publishing:
+    - `origin` -> `https://github.com/dominikrieder94-dev/citra.git`
+    - `upstream` -> `https://github.com/weihuoya/citra.git`
+  - Post-Boost-PR Android validation was re-run on 2026-03-18: `task deploy-debug-apk` rebuilt and reinstalled the current debug APK to `R3CXB0SJ5GL`, and the owner reported runtime still looked correct.
+- First next steps:
+  1. Push the main branch to the owner's `citra` fork and open the corresponding PR if the owner wants review history on GitHub.
+  2. Test a fresh clone from the published main repo plus `git submodule update --init --recursive` on a separate checkout to prove end-to-end reproducibility.
+  3. Keep using `src/android/local.properties` as the only intentional machine-local Android setup file.
+
 ## 2026-03-17
 - Verified state:
   - The superproject already anchors the preserved external snapshots in commit `c567f73a3`, and the externals classification pass is now complete enough to move from read-only auditing into selective cleanup planning.
