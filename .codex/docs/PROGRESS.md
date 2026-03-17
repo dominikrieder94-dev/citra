@@ -254,3 +254,9 @@
   - `.codex/docs/TASKS.md`
   - `EXTERNALS_PRESERVATION.md`
   - `externals/nihstro`
+
+## 2026-03-17 (deploy normalized debug apk)
+- Intent: Deploy the current Android debug APK after the low-risk external normalizations so device testing can continue from the updated dependency state.
+- Outcome: Verified connected device `R3CXB0SJ5GL`, confirmed the current `app-debug.apk` artifact exists for `253b715fc`, and installed it successfully with `adb -s R3CXB0SJ5GL install -r`.
+- Files touched:
+  - `.codex/docs/PROGRESS.md`
