@@ -1,15 +1,16 @@
 # TASKS
 
 ## Priority
-- [ ] Classify and preserve `externals/nihstro` as an intentional local compatibility patch instead of treating it as a simple rewind candidate.
 - [ ] Decide how to replace or minimize the broad local Boost import while keeping Android toolchain compatibility.
-- [ ] Define a reproducible bootstrap strategy that can recreate the current Android-working state.
-- [ ] Normalize Android build bootstrap so a fresh checkout can build from CLI without machine-specific assumptions: keep wrapper scripts, confirm `Taskfile.yml`, document prerequisites, and decide what belongs in version control.
+- [ ] Decide whether `externals/nihstro` should remain a pinned compatibility snapshot or be reduced to a smaller explicit patch set.
 - [ ] Validate the current Android build/runtime on at least one representative set of games and record residual issues.
 - [ ] Split releaseability work from future feature workstreams such as screen layout improvements.
-- [ ] Remove or ignore local generated build logs so the worktree stays readable.
 
 ## Done
+- [x] Remove or ignore local generated Android build logs so the worktree stays readable. (2026-03-17)
+- [x] Normalize Android build bootstrap so a fresh checkout can build from CLI without machine-specific assumptions: keep wrapper scripts, confirm `Taskfile.yml`, document prerequisites, and decide what belongs in version control. (2026-03-17)
+- [x] Define a reproducible bootstrap strategy that can recreate the current Android-working state. (2026-03-17)
+- [x] Classify and preserve `externals/nihstro` as an intentional local compatibility patch instead of treating it as a simple rewind candidate. (2026-03-17)
 - [x] Classify `externals/boost` as an intentional pinned compatibility snapshot for the current Android toolchain; old clean commit `36603a1e665e849d29b1735a12c0a51284a10dd0` fails build because Boost still uses `std::unary_function`. (2026-03-17)
 - [x] Confirm on device that the `externals/libressl` normalization behaves correctly on `R3CXB0SJ5GL`. (2026-03-17)
 - [x] Normalize `externals/libressl` to clean fork head `88b8e41b71099fabc57813bc06d8bc1aba050a19`, then rebuild and deploy the APK. (2026-03-17)

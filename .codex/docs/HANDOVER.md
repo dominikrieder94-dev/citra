@@ -18,10 +18,16 @@
   - `externals/boost` is not a rewind candidate under the current Android toolchain. Reverting it from preserved snapshot `4cc38a77d7c5bfd0c73e3ceef8ef54e64387a2a2` to old clean commit `36603a1e665e849d29b1735a12c0a51284a10dd0` breaks Dynarmic compilation because old Boost still uses `std::unary_function` in `boost/container_hash/hash.hpp`, which current Android libc++ no longer provides. Restoring `4cc38a77d7c5bfd0c73e3ceef8ef54e64387a2a2` returns Android buildability.
   - `externals/nihstro` is not a safe rewind candidate. Reverting it to the old gitlink `fd69de1a1b960ec296cc67d32257b0f9e2d89ac6` breaks Android compilation because current libc++ rejects the old `std::make_unsigned` specializations in `include/nihstro/shader_bytecode.h`. The preserved snapshot `c9af0af155514b5c12a6f2d9e2b10fb98ec66750` was restored and the Android build passes again.
   - `externals/dynarmic` is now normalized to local preserved commit `384d240134f74ebaed6bd748d9662069dcaf3a68` on top of clean fork commit `526227eebe1efff3fb14dbf494b9c5b44c2e9c1f`. Dynarmic's own nested submodules are restored, the accidental vendored `externals/*` trees are gone, the small real local patch set remains, Android `:app:assembleDebug` passes, the rebuilt APK installed successfully to `R3CXB0SJ5GL`, and device runtime is confirmed good.
+  - Android bootstrap is now explicitly documented and revalidated:
+    - `git submodule update --init --recursive` yields a fully initialized recursive submodule state
+    - `cmd /c gradlew.bat :app:assembleDebug --stacktrace` passes
+    - `cmd /c gradlew.bat clean :app:assembleDebug --stacktrace` also passes
+    - `Taskfile.yml` now exposes `build-debug-apk-clean` and `deploy-debug-apk`
+    - the only intentional machine-local Android file is `src/android/local.properties`
 - First next steps:
-  1. Treat `externals/nihstro` as a required local compatibility patch until its changes are separated, documented, or upstreamed.
-  2. Treat `externals/boost` as an intentional pinned compatibility snapshot until a clean newer Boost replacement strategy exists.
-  3. Continue the reproducibility cleanup by documenting which preserved externals are now confirmed-safe normalized states versus intentional local patches.
+  1. Decide how to replace or minimize the broad local Boost import while keeping Android toolchain compatibility.
+  2. Decide whether `externals/nihstro` should stay as a pinned local compatibility snapshot long-term or be replaced by a smaller explicit patch set.
+  3. Validate the current Android runtime on a representative set of games and record residual issues.
 
 ## 2026-03-16
 - Verified state:

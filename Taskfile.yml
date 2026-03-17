@@ -10,11 +10,24 @@ tasks:
     cmds:
       - cmd /c gradlew.bat :app:assembleDebug --stacktrace
 
+  build-debug-apk-clean:
+    desc: Clean and rebuild the Android debug APK
+    dir: src/android
+    cmds:
+      - cmd /c gradlew.bat clean :app:assembleDebug --stacktrace
+
   install-debug-apk:
     desc: Install or update the built debug APK on the connected Android device
     dir: .
     cmds:
       - adb -s {{.DEVICE_SERIAL}} install -r "src/android/app/build/outputs/apk/debug/app-debug.apk"
+
+  deploy-debug-apk:
+    desc: Build and install the Android debug APK
+    deps:
+      - build-debug-apk
+    cmds:
+      - task: install-debug-apk
 
   clear-logcat:
     desc: Clear device logcat before reproducing a crash

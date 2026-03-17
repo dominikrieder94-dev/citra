@@ -342,3 +342,16 @@
   - `.codex/docs/PROGRESS.md`
   - `.codex/docs/TASKS.md`
   - `EXTERNALS_PRESERVATION.md`
+
+## 2026-03-17 (document reproducible Android bootstrap)
+- Intent: Turn the now-cleaned dependency state into an explicit fresh-checkout Android bootstrap path, then validate it with a clean rebuild instead of relying on incremental local state.
+- Outcome: Updated `README.md`, `Taskfile.yml`, `.gitignore`, and `.codex/docs/DECISIONS.md` to describe the maintained-fork Android bootstrap contract. Added `task build-debug-apk-clean` and `task deploy-debug-apk`, ignored `src/android/build_*.log`, documented the machine-local `src/android/local.properties` requirement, and revalidated the path with `task build-debug-apk-clean`. Also re-ran `git submodule update --init --recursive --force externals/libyuv`, which cleared the stale `-` marker so `git submodule status --recursive` is now fully clean.
+- Files touched:
+  - `.codex/docs/DECISIONS.md`
+  - `.codex/docs/HANDOVER.md`
+  - `.codex/docs/INSIGHTS.md`
+  - `.codex/docs/PROGRESS.md`
+  - `.codex/docs/TASKS.md`
+  - `.gitignore`
+  - `README.md`
+  - `Taskfile.yml`

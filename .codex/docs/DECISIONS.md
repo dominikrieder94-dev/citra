@@ -53,3 +53,20 @@
   - Supports future maintenance sessions even after context turnover.
 - Consequences:
   - Future agents should use the skill when doing Android device build/deploy/debug work here.
+
+## 2026-03-17 - Keep the current Android bootstrap contract explicit and pinned
+- Context: The repo now has a working Android build again, but reproducibility still depends on knowing the exact CLI entrypoint, required Android SDK components, and which externals are intentionally pinned compatibility snapshots rather than clean upstream rewinds.
+- Decision: Treat the Windows CLI Android path as a pinned operational contract for now:
+  - initialize submodules with `git submodule update --init --recursive`
+  - provide `src/android/local.properties` per machine
+  - build from `src/android` with `cmd /c gradlew.bat :app:assembleDebug --stacktrace`
+  - keep `Taskfile.yml` aligned with that path
+  - keep `externals/boost` and `externals/nihstro` on their current compatibility snapshots until a cleaner replacement strategy exists
+- Rationale:
+  - This is the only fully verified Android build/install/runtime path today.
+  - Making it explicit reduces dependence on chat history and local memory.
+  - The remaining external exceptions are now understood compatibility constraints, not ambiguous dirt.
+- Consequences:
+  - Fresh-checkout instructions should describe `local.properties`, pinned NDK/CMake versions, and the exact build command.
+  - Generated Android build logs should stay ignored so bootstrap work does not pollute the worktree.
+  - Future external cleanup should target replacing or minimizing Boost and Nihstro deliberately, not by blind rewind.

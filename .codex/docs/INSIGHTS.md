@@ -62,6 +62,14 @@
 - `citra_v2/src/android` needed `gradlew` and `gradlew.bat` restored for the existing Taskfile-based workflow to make sense.
 - The successful local build path is now `cmd /c gradlew.bat :app:assembleDebug --stacktrace` from `src/android`.
 - If a future agent sees "we cannot build anymore", check for missing wrapper scripts before assuming a code regression.
+- The stronger reproducibility check now also passes: `cmd /c gradlew.bat clean :app:assembleDebug --stacktrace` succeeds from `src/android`, and the same path is exposed at the repo root as `task build-debug-apk-clean`.
+- `src/android/local.properties` remains intentionally untracked and machine-local. A fresh checkout still needs a valid `sdk.dir=...` pointing at the local Android SDK.
+- The tracked Android Gradle config currently expects:
+  - NDK `29.0.14206865`
+  - CMake `3.31.6`
+  - `arm64-v8a` only
+- Building with JDK `23.0.1` works, but Gradle warns that Java 23 compiling source/target 8 is deprecated. That is not currently a blocker, but it is a future bootstrap risk.
+- Re-running `git submodule update --init --recursive --force externals/libyuv` cleared the stray leading `-` marker in `git submodule status`. The repo now reports a fully initialized recursive submodule state again.
 
 ## Externals state
 - The current working Android runtime still depends on dirty external states that are not fully represented by the superproject gitlinks.
