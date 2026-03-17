@@ -13,6 +13,8 @@ src/common/scm_rev.cpp
 .vs/
 .vscode/
 .codex/
+.env
+.env.local
 CMakeLists.txt.user*
 
 # *nix related

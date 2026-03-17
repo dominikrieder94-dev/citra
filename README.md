@@ -42,20 +42,27 @@ This is the currently verified Windows CLI path for a fresh checkout.
 
 Prerequisites:
 - JDK on `PATH` or `JAVA_HOME` set to a valid JDK
-- Android SDK installed and reachable through `src/android/local.properties`
+- Android SDK installed at the default Windows path `%LOCALAPPDATA%\Android\Sdk` or reachable through `src/android/local.properties`
 - Android SDK components matching the tracked Gradle config:
   - NDK `29.0.14206865`
   - CMake `3.31.6`
   - platform-tools / `adb`
 - Git submodules initialized
+- A local `.env` or `.env.local` with `DEVICE_SERIAL=<your_device_serial>` if you want to use the device install/logcat tasks
 
-Setup:
+Setup with Task:
 ```powershell
-git submodule update --init --recursive
+Copy-Item .env.example .env
+# then edit .env and set DEVICE_SERIAL
+task setup-android
 ```
 
-Machine-local Android SDK path:
-- Create or update `src/android/local.properties`
+What `task setup-android` does:
+- runs `git submodule update --init --recursive`
+- creates `src/android/local.properties` automatically if it is missing and the Android SDK is installed at `%LOCALAPPDATA%\Android\Sdk`
+
+Manual fallback for the machine-local Android SDK path:
+- Create or update `src/android/local.properties` yourself
 - Example:
 
 ```properties
@@ -64,14 +71,17 @@ sdk.dir=C:\\Users\\<you>\\AppData\\Local\\Android\\Sdk
 
 Verified build command:
 ```powershell
-cd src/android
-cmd /c gradlew.bat :app:assembleDebug --stacktrace
+task build-debug-apk
 ```
 
 Verified clean build command:
 ```powershell
-cd src/android
-cmd /c gradlew.bat clean :app:assembleDebug --stacktrace
+task build-debug-apk-clean
+```
+
+Verified build-and-install command:
+```powershell
+task deploy-debug-apk
 ```
 
 Built APK:

@@ -1,26 +1,51 @@
 version: '3'
-
-vars:
-  DEVICE_SERIAL: R3CXB0SJ5GL
+dotenv:
+  - .env
+  - .env.local
 
 tasks:
+  init-submodules:
+    desc: Initialize and update all Git submodules recursively
+    dir: .
+    cmds:
+      - git submodule update --init --recursive
+
+  ensure-android-local-properties:
+    desc: Create src/android/local.properties from the default Windows Android SDK path if it is missing
+    dir: .
+    cmds:
+      - powershell -NoProfile -ExecutionPolicy Bypass -File scripts/ensure-android-local-properties.ps1
+
+  setup-android:
+    desc: Prepare the fresh clone for Android CLI builds
+    deps:
+      - init-submodules
+      - ensure-android-local-properties
+
   build-debug-apk:
     desc: Build the Android debug APK
     dir: src/android
+    deps:
+      - setup-android
     cmds:
       - cmd /c gradlew.bat :app:assembleDebug --stacktrace
 
   build-debug-apk-clean:
     desc: Clean and rebuild the Android debug APK
     dir: src/android
+    deps:
+      - setup-android
     cmds:
       - cmd /c gradlew.bat clean :app:assembleDebug --stacktrace
 
   install-debug-apk:
     desc: Install or update the built debug APK on the connected Android device
     dir: .
+    requires:
+      vars:
+        - DEVICE_SERIAL
     cmds:
-      - adb -s {{.DEVICE_SERIAL}} install -r "src/android/app/build/outputs/apk/debug/app-debug.apk"
+      - adb -s {{.DEVICE_SERIAL}} install -r -d "src/android/app/build/outputs/apk/debug/app-debug.apk"
 
   deploy-debug-apk:
     desc: Build and install the Android debug APK
@@ -32,17 +57,26 @@ tasks:
   clear-logcat:
     desc: Clear device logcat before reproducing a crash
     dir: .
+    requires:
+      vars:
+        - DEVICE_SERIAL
     cmds:
       - adb -s {{.DEVICE_SERIAL}} logcat -c
 
   show-crash-log:
     desc: Show the Android crash buffer for the connected device
     dir: .
+    requires:
+      vars:
+        - DEVICE_SERIAL
     cmds:
       - adb -s {{.DEVICE_SERIAL}} logcat -b crash -d
 
   show-app-log:
     desc: Show filtered app and runtime lines from the main log buffer
     dir: .
+    requires:
+      vars:
+        - DEVICE_SERIAL
     cmds:
       - powershell -NoProfile -Command "adb -s {{.DEVICE_SERIAL}} logcat -d | Select-String -Pattern 'org\.citra\.emu\.debug|AndroidRuntime|FATAL EXCEPTION|Fatal signal|backtrace|Abort message|UnsatisfiedLinkError'"
