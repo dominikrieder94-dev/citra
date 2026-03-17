@@ -361,3 +361,14 @@
 - Outcome: Verified `R3CXB0SJ5GL` was connected with `adb devices`, then installed `src/android/app/build/outputs/apk/debug/app-debug.apk` successfully via `task install-debug-apk`.
 - Files touched:
   - `.codex/docs/PROGRESS.md`
+
+## 2026-03-17 (minimize nihstro compatibility delta)
+- Intent: Reduce `externals/nihstro` from a broad preserved snapshot to the smallest explicit patch set that still compiles under the current Android toolchain, then rebuild and deploy for device verification.
+- Outcome: Rebased the active `nihstro` state onto clean upstream `f4d8659f85874de9044d197b1d4a7f8340de1d4b` and kept only a two-file local compatibility patch in `include/nihstro/bit_field.h` and `include/nihstro/shader_bytecode.h`. The reduced patch removes the forbidden `std::make_unsigned` specializations, introduces `BitFieldStorageType` as the extension point, keeps the fallback `return 0;` in `SourceRegister::GetIndex()`, restores Android `:app:assembleDebug` to a passing state, installs successfully to `R3CXB0SJ5GL`, and is confirmed working on device.
+- Files touched:
+  - `.codex/docs/HANDOVER.md`
+  - `.codex/docs/INSIGHTS.md`
+  - `.codex/docs/PROGRESS.md`
+  - `.codex/docs/TASKS.md`
+  - `EXTERNALS_PRESERVATION.md`
+  - `externals/nihstro`

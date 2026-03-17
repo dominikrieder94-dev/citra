@@ -137,6 +137,15 @@
 - `externals/nihstro` cannot be normalized by simple rewind. Reverting it to `fd69de1a1b960ec296cc67d32257b0f9e2d89ac6` fails Android compilation in `include/nihstro/shader_bytecode.h` because the older code specializes `std::make_unsigned`, which current libc++ explicitly forbids.
 - The preserved `nihstro` patches are not cosmetic. At minimum, the `BitFieldStorageType` refactor and the extra `return 0;` in `SourceRegister::GetIndex()` are part of the current working Android toolchain compatibility story.
 
+## 2026-03-17 nihstro minimization
+- `externals/nihstro` no longer needs to stay on the broader preserved snapshot `c9af0af155514b5c12a6f2d9e2b10fb98ec66750`.
+- A cleaner base exists at upstream `f4d8659f85874de9044d197b1d4a7f8340de1d4b`, which already contains newer Boost-related cleanup.
+- Rebuilding from clean `f4d8659` shows the actual Android blocker clearly: `include/nihstro/shader_bytecode.h` still specializes `std::make_unsigned` for `SourceRegister`, `DestRegister`, and `OpCode`, and current Android libc++ rejects those specializations outright.
+- The minimal working compatibility delta is only:
+  - `include/nihstro/bit_field.h`: introduce `BitFieldStorageType` as the customization point used by `BitField`
+  - `include/nihstro/shader_bytecode.h`: specialize `BitFieldStorageType` for the enum-like register/opcode wrapper types and keep the fallback `return 0;` in `SourceRegister::GetIndex()`
+- That reduced two-file patch was committed locally as `b2291a63a6bdbb095b68dcffde6be3c73887cf17`, Android `:app:assembleDebug` passes, the APK installs to `R3CXB0SJ5GL`, and device runtime is confirmed good.
+
 ## 2026-03-17 inih repair
 - `externals/inih/inih` was not merely dirty; the superproject was pinned to a broken local commit `319893ccbe95662983177b589a6cb76f90cc8c65` that deleted the entire upstream tree.
 - Rewinding it to the clean historical gitlink `2023872dfffb38b6a98f2c45a0eb25652aaea91f` restores the expected source layout (`ini.c`, `ini.h`, `cpp/INIReader.*`, examples, tests).

@@ -2,11 +2,12 @@
 
 ## Priority
 - [ ] Decide how to replace or minimize the broad local Boost import while keeping Android toolchain compatibility.
-- [ ] Decide whether `externals/nihstro` should remain a pinned compatibility snapshot or be reduced to a smaller explicit patch set.
 - [ ] Validate the current Android build/runtime on at least one representative set of games and record residual issues.
 - [ ] Split releaseability work from future feature workstreams such as screen layout improvements.
+- [ ] Decide whether current Android build warnings should be reduced now or left as tracked modernization debt.
 
 ## Done
+- [x] Minimize `externals/nihstro` to a two-file local Android libc++ compatibility patch on top of clean upstream `f4d8659f85874de9044d197b1d4a7f8340de1d4b`, then rebuild, deploy, and confirm on device. (2026-03-17)
 - [x] Remove or ignore local generated Android build logs so the worktree stays readable. (2026-03-17)
 - [x] Normalize Android build bootstrap so a fresh checkout can build from CLI without machine-specific assumptions: keep wrapper scripts, confirm `Taskfile.yml`, document prerequisites, and decide what belongs in version control. (2026-03-17)
 - [x] Define a reproducible bootstrap strategy that can recreate the current Android-working state. (2026-03-17)
