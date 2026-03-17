@@ -151,6 +151,7 @@
   - force `SOUNDSTRETCH=OFF` because the emulator does not use the CLI utility and the preserved local tree had deleted its sources anyway
   - propagate `SOUNDTOUCH_INTEGER_SAMPLES` as an interface definition on the `SoundTouch` target
 - With those superproject fixes in place, Android `:app:assembleDebug` succeeds again and the normalized APK installs to `R3CXB0SJ5GL`.
+- Runtime is now also confirmed on the physical device after deployment. The normalized soundtouch state is no longer just build-clean.
 
 ## Practical debugging workflow
 - The recovered workflow is:

@@ -2,7 +2,6 @@
 
 ## Priority
 - [ ] Classify and preserve `externals/nihstro` as an intentional local compatibility patch instead of treating it as a simple rewind candidate.
-- [ ] Confirm on device that the `externals/soundtouch` normalization behaves correctly on `R3CXB0SJ5GL`.
 - [ ] Decide the target strategy for the heavy drifts in `externals/boost` and `externals/libressl`.
 - [ ] Define a reproducible bootstrap strategy that can recreate the current Android-working state.
 - [ ] Normalize Android build bootstrap so a fresh checkout can build from CLI without machine-specific assumptions: keep wrapper scripts, confirm `Taskfile.yml`, document prerequisites, and decide what belongs in version control.
@@ -11,6 +10,7 @@
 - [ ] Remove or ignore local generated build logs so the worktree stays readable.
 
 ## Done
+- [x] Confirm on device that the `externals/soundtouch` normalization behaves correctly on `R3CXB0SJ5GL`. (2026-03-17)
 - [x] Normalize `externals/soundtouch` to clean upstream commit `9ef8458d8561d9471dd20e9619e3be4cfe564796` by moving the real Android integration requirements into `externals/CMakeLists.txt`, then rebuild and deploy the APK. (2026-03-17)
 - [x] Confirm on device that the `externals/dynarmic` normalization behaves correctly on `R3CXB0SJ5GL`. (2026-03-17)
 - [x] Separate accidental vendoring from the real local patch set in `externals/dynarmic`, restore dynarmic's nested submodules, and verify Android `:app:assembleDebug` still passes. (2026-03-17)

@@ -303,3 +303,12 @@
   - `EXTERNALS_PRESERVATION.md`
   - `externals/CMakeLists.txt`
   - `externals/soundtouch`
+
+## 2026-03-17 (confirm soundtouch normalization on device)
+- Intent: Close the high-risk `externals/soundtouch` cleanup loop by confirming the rebuilt APK still behaves correctly on the physical Android device after installation.
+- Outcome: Device verification succeeded. The user confirmed that the APK built from superproject commit `4aec12817` with normalized `externals/soundtouch` still works correctly on `R3CXB0SJ5GL`.
+- Files touched:
+  - `.codex/docs/HANDOVER.md`
+  - `.codex/docs/INSIGHTS.md`
+  - `.codex/docs/PROGRESS.md`
+  - `.codex/docs/TASKS.md`
