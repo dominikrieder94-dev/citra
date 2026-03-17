@@ -12,6 +12,7 @@ src/common/scm_rev.cpp
 .idea/
 .vs/
 .vscode/
+.codex/
 CMakeLists.txt.user*
 
 # *nix related
