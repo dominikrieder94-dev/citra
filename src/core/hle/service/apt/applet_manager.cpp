@@ -3,6 +3,12 @@
 // Refer to the license.txt file included.
 
 #include "common/common_paths.h"
+#ifdef ANDROID
+#include <android/log.h>
+#define CITRA_APT_ANDROID_LOG(...) __android_log_print(ANDROID_LOG_INFO, "citra", __VA_ARGS__)
+#else
+#define CITRA_APT_ANDROID_LOG(...)
+#endif
 #include "core/core.h"
 #include "core/hle/applets/applet.h"
 #include "core/hle/service/apt/applet_manager.h"
@@ -521,6 +527,11 @@ ResultCode AppletManager::DoApplicationJump() {
     // prompts it to call GetProgramIdOnApplicationJump and
     // PrepareToStartApplication/StartApplication on the title to launch.
 
+    CITRA_APT_ANDROID_LOG("APT DoApplicationJump current_title=%llu next_title=%llu media_type=%u",
+                          static_cast<unsigned long long>(app_jump_parameters.current_title_id),
+                          static_cast<unsigned long long>(app_jump_parameters.next_title_id),
+                          static_cast<unsigned>(app_jump_parameters.next_media_type));
+
     if (app_jump_parameters.next_title_id == app_jump_parameters.current_title_id) {
         // Perform a soft-reset if we're trying to relaunch the same title.
         // TODO(Subv): Note that this reboots the entire emulated system, a better way would be to
@@ -536,6 +547,8 @@ ResultCode AppletManager::DoApplicationJump() {
         NS::LaunchTitle(app_jump_parameters.next_media_type, app_jump_parameters.next_title_id);
     if (!process) {
         LOG_CRITICAL(Service_APT, "Failed to launch title during application jump, exiting.");
+        CITRA_APT_ANDROID_LOG("APT DoApplicationJump failed to launch next_title=%llu",
+                              static_cast<unsigned long long>(app_jump_parameters.next_title_id));
         system.RequestShutdown();
     }
     return RESULT_SUCCESS;

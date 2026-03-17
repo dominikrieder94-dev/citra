@@ -44,6 +44,12 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"/>
 
+        <RadioButton
+            android:id="@+id/radio4"
+            android:text="Radio4"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"/>
+
     </RadioGroup>
 
 </RelativeLayout>

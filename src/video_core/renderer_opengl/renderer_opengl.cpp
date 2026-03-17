@@ -397,9 +397,17 @@ void RendererOpenGL::SwapBuffers() {
 
     RenderScreenshot();
 
-    if (Settings::values.use_present_thread) {
+    bool use_present_thread = Settings::values.use_present_thread;
+#ifdef ANDROID
+    use_present_thread = false;
+#endif
+    if (use_present_thread) {
         RenderToMailbox(layout);
     } else {
+        // The accelerated display path can leave an offscreen FBO bound.
+        // Rebind the window/default framebuffer before the final composition pass.
+        OpenGLState::BindReadFramebuffer(0);
+        OpenGLState::BindDrawFramebuffer(0);
         DrawScreens(layout);
         render_window.SwapBuffers();
     }
@@ -487,6 +495,7 @@ bool RendererOpenGL::TryPresent() {
 
     // Clearing before a full overwrite of a fbo can signal to drivers that they can avoid a
     // readback since we won't be doing any blending
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
     // Recreate the presentation FBO if the color attachment was changed
@@ -540,7 +549,7 @@ out vec2 frag_tex_coord;
 void main() {
     vec2 rawpos = vec2(gl_VertexID & 1, (gl_VertexID & 2) >> 1);
     frag_tex_coord = vec2(rawpos.x, rawpos.y);
-    mat2 rotate = mat2(0, -1, 1, 0); // rotate -90°
+    mat2 rotate = mat2(0, -1, 1, 0); // rotate -90ï¿½
     gl_Position = vec4((rawpos * 2.0 - 1.0) * rotate, 0.0, 1.0);
 }
 )";
@@ -605,8 +614,9 @@ void RendererOpenGL::LoadFBToScreenInfo(const GPU::Regs::FramebufferConfig& fram
     // only allows rows to have a memory alignement of 4.
     ASSERT(pixel_stride % 4 == 0);
 
-    if (!VideoCore::Rasterizer()->AccelerateDisplay(framebuffer, framebuffer_addr,
-                                                    static_cast<u32>(pixel_stride), screen_info)) {
+    const bool accelerated = VideoCore::Rasterizer()->AccelerateDisplay(
+        framebuffer, framebuffer_addr, static_cast<u32>(pixel_stride), screen_info);
+    if (!accelerated) {
         // Reset the screen info's display texture to its own permanent texture
         screen_info.display_texture = screen_info.texture.resource.handle;
         screen_info.display_texcoords = Common::Rectangle<float>(0.f, 0.f, 1.f, 1.f);
@@ -839,6 +849,24 @@ void RendererOpenGL::ConfigureFramebufferTexture(TextureInfo& texture,
  * Draws the emulated screens to the emulator window.
  */
 void RendererOpenGL::DrawScreens(const Layout::FramebufferLayout& layout) {
+    state.draw.shader_program = shader.handle;
+    state.draw.vertex_array = vertex_array.handle;
+    state.draw.vertex_buffer = vertex_buffer.handle;
+    state.viewport.x = 0;
+    state.viewport.y = 0;
+    state.viewport.width = layout.width;
+    state.viewport.height = layout.height;
+    state.cull.enabled = false;
+    state.depth.test_enabled = false;
+    state.depth.write_mask = GL_FALSE;
+    state.stencil.test_enabled = false;
+    state.blend.enabled = false;
+    state.scissor.enabled = false;
+    state.color_mask.red_enabled = GL_TRUE;
+    state.color_mask.green_enabled = GL_TRUE;
+    state.color_mask.blue_enabled = GL_TRUE;
+    state.color_mask.alpha_enabled = GL_TRUE;
+    state.Apply();
     OpenGLState::BindSampler(0, filter_sampler.handle);
 
     // Set projection matrix
@@ -909,7 +937,6 @@ void RendererOpenGL::DrawScreens(const Layout::FramebufferLayout& layout) {
         glUniform4f(uniform_resolution, res_width, res_height, src_width, src_height);
         glDrawArrays(GL_TRIANGLE_STRIP, 4, 4);
     }
-
     // draw on screen display
     OSD::DrawMessage(render_window, layout);
 }

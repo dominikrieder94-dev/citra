@@ -342,6 +342,13 @@ GLuint OpenGLState::BindVertexArray(GLuint array) {
     return previous;
 }
 
+GLuint OpenGLState::BindVertexBuffer(GLuint buffer) {
+    GLuint previous = cur_state.draw.vertex_buffer;
+    glBindBuffer(GL_ARRAY_BUFFER, buffer);
+    cur_state.draw.vertex_buffer = buffer;
+    return previous;
+}
+
 GLuint OpenGLState::BindUniformBuffer(GLuint buffer) {
     GLuint previous = cur_state.draw.uniform_buffer;
     glBindBuffer(GL_UNIFORM_BUFFER, buffer);
@@ -384,6 +391,15 @@ GLuint OpenGLState::BindDrawFramebuffer(GLuint framebuffer) {
     if (previous != framebuffer) {
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer);
         cur_state.draw.draw_framebuffer = framebuffer;
+    }
+    return previous;
+}
+
+GLuint OpenGLState::BindRenderbuffer(GLuint buffer) {
+    GLuint previous = cur_state.renderbuffer;
+    if (previous != buffer) {
+        glBindRenderbuffer(GL_RENDERBUFFER, buffer);
+        cur_state.renderbuffer = buffer;
     }
     return previous;
 }
@@ -502,6 +518,13 @@ void OpenGLState::ResetFramebuffer(GLuint handle) {
     if (cur_state.draw.draw_framebuffer == handle) {
         cur_state.draw.draw_framebuffer = 0;
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+    }
+}
+
+void OpenGLState::ResetRenderbuffer(GLuint handle) {
+    if (cur_state.renderbuffer == handle) {
+        cur_state.renderbuffer = 0;
+        glBindRenderbuffer(GL_RENDERBUFFER, 0);
     }
 }
 

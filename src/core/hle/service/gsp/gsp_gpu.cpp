@@ -2,7 +2,9 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include <atomic>
 #include <vector>
+#include <android/log.h>
 #include "common/bit_field.h"
 #include "common/microprofile.h"
 #include "common/swap.h"
@@ -25,6 +27,16 @@
 GraphicsDebugger g_debugger;
 
 namespace Service::GSP {
+
+namespace {
+
+constexpr char kCitraGspTag[] = "citra";
+std::atomic<u32> s_gsp_queue_logs{0};
+std::atomic<u32> s_gsp_command_logs{0};
+
+#define CITRA_GSP_ANDROID_LOG(...) __android_log_print(ANDROID_LOG_INFO, kCitraGspTag, __VA_ARGS__)
+
+} // namespace
 
 // Beginning address of HW regs
 const u32 REGS_BEGIN = 0x1EB00000;
@@ -317,6 +329,10 @@ void GSP_GPU::SetBufferSwap(Kernel::HLERequestContext& ctx) {
     IPC::RequestParser rp(ctx, 0x5, 8, 0);
     u32 screen_id = rp.Pop<u32>();
     auto fb_info = rp.PopRaw<FrameBufferInfo>();
+    CITRA_GSP_ANDROID_LOG(
+        "GSP SetBufferSwap screen=%u left=%08x right=%08x stride=%u format=%u active=%u shown=%u",
+        screen_id, fb_info.address_left, fb_info.address_right, fb_info.stride, fb_info.format,
+        fb_info.active_fb, fb_info.shown_fb);
 
     IPC::RequestBuilder rb = rp.MakeBuilder(1, 0);
     rb.Push(GSP::SetBufferSwap(screen_id, fb_info));
@@ -375,6 +391,8 @@ void GSP_GPU::RegisterInterruptRelayQueue(Kernel::HLERequestContext& ctx) {
     SessionData* session_data = GetSessionData(ctx.Session());
     session_data->interrupt_event = std::move(interrupt_event);
     session_data->registered = true;
+    CITRA_GSP_ANDROID_LOG("GSP RegisterInterruptRelayQueue thread=%u flags=%u", session_data->thread_id,
+                          flags);
 
     IPC::RequestBuilder rb = rp.MakeBuilder(2, 2);
 
@@ -482,6 +500,16 @@ static void ExecuteCommand(const Command& command) {
     static auto WriteGPURegister = [](u32 id, u32 data) {
         GPU::Write<u32>(0x1EF00000 + 4 * id, data);
     };
+
+    const u32 command_log_index = s_gsp_command_logs.fetch_add(1);
+    if (command_log_index < 64) {
+        CITRA_GSP_ANDROID_LOG("GSP ExecuteCommand[%u] id=%u raw0=%08x raw1=%08x raw2=%08x raw3=%08x",
+                              command_log_index, static_cast<u32>(command.id.Value()),
+                              reinterpret_cast<const u32*>(&command)[0],
+                              reinterpret_cast<const u32*>(&command)[1],
+                              reinterpret_cast<const u32*>(&command)[2],
+                              reinterpret_cast<const u32*>(&command)[3]);
+    }
 
     switch (command.id) {
 
@@ -628,6 +656,12 @@ void GSP_GPU::TriggerCmdReqQueue(Kernel::HLERequestContext& ctx) {
 
     for (u32 thread_id = 0; thread_id < MaxGSPThreads; ++thread_id) {
         CommandBuffer& command_buffer = GetCommandBuffer(shared_memory, thread_id);
+        const u32 queue_log_index = s_gsp_queue_logs.fetch_add(1);
+        if (queue_log_index < 32) {
+            CITRA_GSP_ANDROID_LOG("GSP TriggerCmdReqQueue[%u] thread=%u index=%u count=%u", queue_log_index,
+                                  thread_id, command_buffer.index.Value(),
+                                  command_buffer.number_commands.Value());
+        }
         // Iterate through each command...
         for (u32 i = 0; i < command_buffer.number_commands; ++i) {
             // Decode and execute command
@@ -704,6 +738,8 @@ void GSP_GPU::AcquireRight(Kernel::HLERequestContext& ctx) {
     auto process = rp.PopObject<Kernel::Process>();
 
     SessionData* session_data = GetSessionData(ctx.Session());
+    CITRA_GSP_ANDROID_LOG("GSP AcquireRight flag=%u process=%u thread=%u active=%d", flag,
+                          process->process_id, session_data->thread_id, active_thread_id);
 
     LOG_WARNING(Service_GSP, "called flag={:08X} process={} thread_id={}", flag,
                 process->process_id, session_data->thread_id);

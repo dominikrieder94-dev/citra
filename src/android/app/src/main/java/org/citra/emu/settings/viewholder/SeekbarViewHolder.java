@@ -30,16 +30,19 @@ public final class SeekbarViewHolder extends SettingViewHolder {
     public void bind(SettingsItem item) {
         mItem = (SliderSetting)item;
         mName.setText(item.getNameId());
-        mSeekBar.setMax(mItem.getMax());
+        mSeekBar.setMax(mItem.getSeekbarMax());
         mSeekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean b) {
-                if (mItem.getMax() > 99)
-                    progress = (progress / 5) * 5;
-                mValue.setText(progress + mItem.getUnits());
-                if (progress != mItem.getSelectedValue()) {
-                    mItem.setSelectedValue(progress);
-                    getAdapter().onSeekbarClick(mItem, getAdapterPosition(), progress);
+                int displayValue = mItem.getValueForProgress(progress);
+                if (mItem.getSeekbarMax() > 99) {
+                    displayValue = ((displayValue + 2) / 5) * 5;
+                    progress = displayValue - mItem.getMin();
+                }
+                mValue.setText(displayValue + mItem.getUnits());
+                if (displayValue != mItem.getSelectedValue()) {
+                    mItem.setSelectedValue(displayValue);
+                    getAdapter().onSeekbarClick(mItem, getAdapterPosition(), displayValue);
                 }
             }
 
@@ -49,7 +52,7 @@ public final class SeekbarViewHolder extends SettingViewHolder {
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {}
         });
-        mSeekBar.setProgress(mItem.getSelectedValue());
+        mSeekBar.setProgress(mItem.getSelectedProgress());
     }
 
     @Override

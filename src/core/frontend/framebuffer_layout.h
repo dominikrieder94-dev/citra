@@ -54,6 +54,49 @@ FramebufferLayout SingleFrameLayout(u32 width, u32 height, bool is_swapped);
 FramebufferLayout LargeFrameLayout(u32 width, u32 height, bool is_swapped);
 
 /**
+ * Android-oriented Large Screen layout that keeps the primary screen at maximum height and sizes
+ * the secondary screen to consume the remaining width while preserving aspect ratio.
+ * @param width Window framebuffer width in pixels
+ * @param height Window framebuffer height in pixels
+ * @param is_swapped if true, the bottom screen will be the large display
+ * @return Newly created FramebufferLayout object sized to fill the available width more
+ * aggressively than the legacy fixed-quarter Large Screen layout
+ */
+FramebufferLayout LargeFrameLayoutAndroid(u32 width, u32 height, bool is_swapped);
+
+/**
+ * Factory method for constructing a top-aligned large-screen layout with a configurable secondary
+ * screen scale.
+ * @param width Window framebuffer width in pixels
+ * @param height Window framebuffer height in pixels
+ * @param is_swapped if true, the bottom screen will be the large display
+ * @param scale_ratio secondary screen scale relative to the primary screen
+ * @return Newly created FramebufferLayout object with top-aligned screen regions initialized
+ */
+FramebufferLayout LargeFrameLayoutTop(u32 width, u32 height, bool is_swapped, float scale_ratio);
+
+/**
+ * Android-oriented top-aligned large-screen layout that keeps the primary screen at maximum
+ * height and sizes the secondary screen from the remaining width, capped by the requested scale.
+ * @param width Window framebuffer width in pixels
+ * @param height Window framebuffer height in pixels
+ * @param is_swapped if true, the bottom screen will be the large display
+ * @param scale_ratio secondary screen scale relative to the primary screen
+ * @return Newly created FramebufferLayout object with top-aligned screen regions initialized
+ */
+FramebufferLayout LargeFrameLayoutTopAndroid(u32 width, u32 height, bool is_swapped, float scale_ratio);
+
+/**
+ * Calculates the top-aligned large-screen proportion at which the secondary screen exactly fills
+ * the remaining width beside the full-height Android large primary screen.
+ * @param width Window framebuffer width in pixels
+ * @param height Window framebuffer height in pixels
+ * @param is_swapped if true, the bottom screen will be the large display
+ * @return Recommended secondary screen size as a percentage of the primary screen size
+ */
+u16 GetLargeFrameLayoutTopAndroidMaxFillProportion(u32 width, u32 height, bool is_swapped);
+
+/**
  * Factory method for constructing a Frame with the Top screen and bottom
  * screen side by side
  * This is useful for devices with small screens, like the GPDWin

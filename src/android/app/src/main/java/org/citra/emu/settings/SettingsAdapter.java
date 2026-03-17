@@ -170,7 +170,7 @@ public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolde
     public void onSliderClick(SliderSetting item, int position) {
         mClickedItem = item;
         mClickedPosition = position;
-        int progress = item.getSelectedValue();
+        int progress = item.getSelectedProgress();
         AlertDialog.Builder builder = new AlertDialog.Builder(mActivity);
 
         LayoutInflater inflater = LayoutInflater.from(mActivity);
@@ -182,13 +182,13 @@ public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolde
         mDialog = builder.show();
 
         mTextSliderValue = view.findViewById(R.id.text_value);
-        mTextSliderValue.setText(String.valueOf(progress));
+        mTextSliderValue.setText(String.valueOf(item.getSelectedValue()));
 
         TextView units = view.findViewById(R.id.text_units);
         units.setText(item.getUnits());
 
         SeekBar seekbar = view.findViewById(R.id.seekbar);
-        seekbar.setMax(item.getMax());
+        seekbar.setMax(item.getSeekbarMax());
         seekbar.setProgress(progress);
         seekbar.setKeyProgressIncrement(5);
         seekbar.setOnSeekBarChangeListener(this);
@@ -271,6 +271,12 @@ public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolde
             }
             if (setting != null) {
                 mActivity.putSetting(setting);
+            }
+            if (SettingsFile.KEY_LAYOUT_OPTION.equals(scSetting.getSetting().getKey())) {
+                IntSetting landscapeSetting =
+                    new IntSetting(SettingsFile.KEY_LANDSCAPE_LAYOUT_OPTION,
+                                   scSetting.getSection(), value);
+                mActivity.putSetting(landscapeSetting);
             } else {
                 //
             }
@@ -295,13 +301,19 @@ public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolde
         } else if (mClickedItem instanceof SliderSetting) {
             SliderSetting sliderSetting = (SliderSetting)mClickedItem;
             SeekBar seekBar = mDialog.findViewById(R.id.seekbar);
-            int value = seekBar.getProgress();
+            int value = sliderSetting.getValueForProgress(seekBar.getProgress());
             if (sliderSetting.getSelectedValue() != value)
                 mActivity.setSettingChanged();
 
             Setting setting = sliderSetting.setSelectedValue(value);
             if (setting != null) {
                 mActivity.putSetting(setting);
+            }
+            if (SettingsFile.KEY_LARGE_SCREEN_PROPORTION.equals(sliderSetting.getKey())) {
+                IntSetting landscapeSetting =
+                    new IntSetting(SettingsFile.KEY_LANDSCAPE_LARGE_SCREEN_PROPORTION,
+                                   sliderSetting.getSection(), value);
+                mActivity.putSetting(landscapeSetting);
             }
 
             closeDialog();
@@ -336,7 +348,13 @@ public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolde
 
     @Override
     public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-        mTextSliderValue.setText(String.valueOf(progress));
+        if (mClickedItem instanceof SliderSetting) {
+            SliderSetting sliderSetting = (SliderSetting)mClickedItem;
+            mTextSliderValue.setText(
+                String.valueOf(sliderSetting.getValueForProgress(progress)));
+        } else {
+            mTextSliderValue.setText(String.valueOf(progress));
+        }
     }
 
     @Override

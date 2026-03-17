@@ -5,14 +5,7 @@ std::atomic<int> NativeLibrary::current_display_rotation = 0;
 static constexpr char* CLASS = "org/citra/emu/NativeLibrary";
 static NativeLibrary::ImageLoadedHandler s_image_loaded_callback;
 
-// jni for cubeb
-JNIEnv* cubeb_get_jni_env_for_thread() {
-    return JniHelper::GetEnvForThread();
-}
-
-jobject cubeb_jni_get_context_instance() {
-    return NativeLibrary::GetEmulationContext();
-}
+// Cubeb provides weak default JNI bridge symbols; avoid duplicating them here.
 
 void NativeLibrary::Initialize(JNIEnv* env) {
     // todo

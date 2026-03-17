@@ -320,26 +320,26 @@ public final class EditorActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.menu_settings_core:
-                SettingsActivity.launch(this, MenuTag.CONFIG, mGameId, mGameName);
-                return true;
-
-            case R.id.menu_open_archive:
-                jumpToExplore();
-                return true;
-
-            case R.id.menu_manage_cheats:
-                toggleManageCheats();
-                return true;
-
-            case R.id.menu_delete_sdmc:
-                deleteAppSdmc();
-                return true;
-
-            case R.id.menu_delete_shader_cache:
-                deleteShaderCache();
-                return true;
+        final int itemId = item.getItemId();
+        if (itemId == R.id.menu_settings_core) {
+            SettingsActivity.launch(this, MenuTag.CONFIG, mGameId, mGameName);
+            return true;
+        }
+        if (itemId == R.id.menu_open_archive) {
+            jumpToExplore();
+            return true;
+        }
+        if (itemId == R.id.menu_manage_cheats) {
+            toggleManageCheats();
+            return true;
+        }
+        if (itemId == R.id.menu_delete_sdmc) {
+            deleteAppSdmc();
+            return true;
+        }
+        if (itemId == R.id.menu_delete_shader_cache) {
+            deleteShaderCache();
+            return true;
         }
         return false;
     }

@@ -5,6 +5,12 @@
 #include "common/common_paths.h"
 #include "common/file_util.h"
 #include "common/logging/log.h"
+#ifdef ANDROID
+#include <android/log.h>
+#define CITRA_APT_ANDROID_LOG(...) __android_log_print(ANDROID_LOG_INFO, "citra", __VA_ARGS__)
+#else
+#define CITRA_APT_ANDROID_LOG(...)
+#endif
 #include "core/core.h"
 #include "core/settings.h"
 #include "core/file_sys/archive_ncch.h"
@@ -682,6 +688,8 @@ void Module::APTInterface::StartLibraryApplet(Kernel::HLERequestContext& ctx) {
     std::vector<u8> buffer = rp.PopStaticBuffer();
 
     LOG_DEBUG(Service_APT, "APT StartLibraryApplet called, applet_id={:08X}", static_cast<u32>(applet_id));
+    CITRA_APT_ANDROID_LOG("APT StartLibraryApplet applet_id=%u buffer_size=%zu",
+                          static_cast<u32>(applet_id), buffer_size);
 
     IPC::RequestBuilder rb = rp.MakeBuilder(1, 0);
     rb.Push(apt->applet_manager->StartLibraryApplet(applet_id, object, buffer));
@@ -694,6 +702,7 @@ void Module::APTInterface::CloseApplication(Kernel::HLERequestContext& ctx) {
     std::vector<u8> buffer = rp.PopStaticBuffer();
 
     LOG_DEBUG(Service_APT, "APT CloseApplication called");
+    CITRA_APT_ANDROID_LOG("APT CloseApplication called parameters_size=%u", parameters_size);
 
     apt->system.RequestShutdown();
 

@@ -1,6 +1,7 @@
 package org.citra.emu;
 
 import android.app.Activity;
+import android.app.Application;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.res.AssetManager;
@@ -8,6 +9,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Rect;
 import android.net.Uri;
+import android.os.Build;
 import android.os.ParcelFileDescriptor;
 import android.util.Log;
 import android.view.Surface;
@@ -16,6 +18,8 @@ import androidx.documentfile.provider.DocumentFile;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashMap;
 
 import org.citra.emu.ui.EmulationActivity;
@@ -24,12 +28,88 @@ import org.citra.emu.utils.NetPlayManager;
 import org.citra.emu.utils.WebRequestHandler;
 
 public final class NativeLibrary {
+    private static final Object LOAD_LOCK = new Object();
+    private static boolean sLoaded;
 
-    static {
-        System.loadLibrary("main");
+    public static void ensureLoaded(Context context) {
+        synchronized (LOAD_LOCK) {
+            if (sLoaded) {
+                return;
+            }
+
+            try {
+                System.loadLibrary("main");
+                sLoaded = true;
+                return;
+            } catch (UnsatisfiedLinkError e) {
+                Log.w("citra", "System.loadLibrary(\"main\") failed, trying extracted native assets", e);
+            }
+
+            Context appContext = context != null ? context.getApplicationContext() : tryGetApplicationContext();
+            if (appContext == null) {
+                throw new UnsatisfiedLinkError("No application context available to extract native assets");
+            }
+
+            final String abi = getSupportedAbi();
+            final File nativeDir = new File(appContext.getFilesDir(), "native-libs");
+            if (!nativeDir.isDirectory() && !nativeDir.mkdirs()) {
+                throw new UnsatisfiedLinkError("Failed to create native library directory: " + nativeDir);
+            }
+
+            try {
+                System.load(extractNativeAsset(appContext, nativeDir, abi, "libyuv.so"));
+                System.load(extractNativeAsset(appContext, nativeDir, abi, "libmain.so"));
+                sLoaded = true;
+            } catch (IOException e) {
+                UnsatisfiedLinkError error =
+                        new UnsatisfiedLinkError("Failed to extract native libraries for ABI " + abi);
+                error.initCause(e);
+                throw error;
+            }
+        }
     }
 
     static HashMap<Integer, ParcelFileDescriptor> SafFileDescriptorMap = new HashMap<>();
+
+    private static Context tryGetApplicationContext() {
+        try {
+            Class<?> activityThread = Class.forName("android.app.ActivityThread");
+            Object app = activityThread.getMethod("currentApplication").invoke(null);
+            if (app instanceof Application) {
+                return ((Application) app).getApplicationContext();
+            }
+        } catch (Exception e) {
+            Log.w("citra", "Unable to resolve application context for native extraction", e);
+        }
+        return null;
+    }
+
+    private static String getSupportedAbi() {
+        for (String abi : Build.SUPPORTED_ABIS) {
+            if ("arm64-v8a".equals(abi) || "armeabi-v7a".equals(abi) || "x86_64".equals(abi) ||
+                    "x86".equals(abi)) {
+                return abi;
+            }
+        }
+        return Build.SUPPORTED_ABIS.length > 0 ? Build.SUPPORTED_ABIS[0] : "arm64-v8a";
+    }
+
+    private static String extractNativeAsset(Context context, File nativeDir, String abi, String libraryName)
+            throws IOException {
+        final String assetPath = "native-libs/" + abi + "/" + libraryName;
+        final File outputFile = new File(nativeDir, libraryName);
+        try (InputStream input = context.getAssets().open(assetPath)) {
+            try (FileOutputStream output = new FileOutputStream(outputFile, false)) {
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = input.read(buffer)) != -1) {
+                    output.write(buffer, 0, read);
+                }
+                output.flush();
+            }
+        }
+        return outputFile.getAbsolutePath();
+    }
 
     public static int SafOpen(String path, String mode) {
         Context context = getMainContext();
@@ -154,13 +234,16 @@ public final class NativeLibrary {
     }
 
     public static void notifyGameShudown() {
+        Log.i("citra", "notifyGameShudown invoked");
         Activity activity = EmulationActivity.get();
         if (activity != null) {
+            Log.i("citra", "notifyGameShudown finishing EmulationActivity");
             activity.finish();
         }
     }
 
     public static void showMessageDialog(int type, String msg) {
+        Log.i("citra", "showMessageDialog: " + msg);
         Context context = getMainContext();
         if (context == null) {
             context = getEmulationContext();
@@ -374,13 +457,19 @@ public final class NativeLibrary {
     public static native void Run(String path);
     public static native void ResumeEmulation();
     public static native void PauseEmulation();
-    public static native void StopEmulation();
+    private static native void nativeStopEmulation();
+
+    public static void StopEmulation() {
+        Log.i("citra", "StopEmulation called\n" + Log.getStackTraceString(new Throwable()));
+        nativeStopEmulation();
+    }
 
     /**
      * running settings
      */
     public static native int[] getRunningSettings();
     public static native void setRunningSettings(int[] settings);
+    public static native int getLargeScreenTopAutoFitProportion();
     public static native void setCustomLayout(boolean isTopScreen, int left, int top, int right, int bottom);
     public static native Rect getCustomLayout(boolean isTopScreen);
     public static native void SetBackgroundImage(int[] pixels, int width, int height);

@@ -134,6 +134,8 @@ public final class SettingsFragment extends Fragment {
         Setting frameLimit = rendererSection.getSetting(SettingsFile.KEY_FRAME_LIMIT);
         Setting customTex = rendererSection.getSetting(SettingsFile.KEY_CUSTOM_TEXTURES);
         Setting factor3d = rendererSection.getSetting(SettingsFile.KEY_FACTOR_3D);
+        Setting largeScreenProportion =
+            rendererSection.getSetting(SettingsFile.KEY_LARGE_SCREEN_PROPORTION);
 
         SettingSection debugSection = mSettings.getSection(Settings.SECTION_INI_DEBUG);
         Setting shaderType = debugSection.getSetting(SettingsFile.KEY_SHADER_TYPE);
@@ -176,6 +178,10 @@ public final class SettingsFragment extends Fragment {
                 R.string.cpu_usage_limit, R.string.cpu_usage_limit_description, false, cpuLimit));
         sl.add(new CheckBoxSetting(SettingsFile.KEY_USE_FENCE_SYNC, Settings.SECTION_INI_RENDERER,
                 R.string.setting_use_fence_sync, R.string.setting_use_fence_sync_description, false, useFenceSync));
+        sl.add(new SliderSetting(SettingsFile.KEY_LARGE_SCREEN_PROPORTION,
+                Settings.SECTION_INI_RENDERER, R.string.large_screen_proportion,
+                R.string.large_screen_proportion_description, 25, 100, "%", 75,
+                largeScreenProportion));
         sl.add(new SliderSetting(SettingsFile.KEY_FRAME_LIMIT, Settings.SECTION_INI_RENDERER,
                 R.string.frame_limit_slider, R.string.frame_limit_slider_description, 200, "",
                 100, frameLimit));

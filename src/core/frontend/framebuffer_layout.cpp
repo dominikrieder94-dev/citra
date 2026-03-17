@@ -2,6 +2,7 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include <algorithm>
 #include <cmath>
 #include "common/assert.h"
 #include "core/3ds.h"
@@ -110,6 +111,163 @@ FramebufferLayout LargeFrameLayout(u32 width, u32 height, bool swapped) {
     res.top_screen = swapped ? small_screen : large_screen;
     res.bottom_screen = swapped ? large_screen : small_screen;
     return res;
+}
+
+FramebufferLayout LargeFrameLayoutAndroid(u32 width, u32 height, bool swapped) {
+    FramebufferLayout res{width, height, true, true, {}, {}};
+
+    const float large_screen_aspect_ratio = swapped ? BOT_SCREEN_ASPECT_RATIO : TOP_SCREEN_ASPECT_RATIO;
+    const float small_screen_aspect_ratio = swapped ? TOP_SCREEN_ASPECT_RATIO : BOT_SCREEN_ASPECT_RATIO;
+
+    Common::Rectangle<u32> screen_area{0, 0, width, height};
+    Common::Rectangle<u32> large_screen = maxRectangle(screen_area, large_screen_aspect_ratio);
+    large_screen = large_screen.TranslateY((height - large_screen.GetHeight()) / 2);
+
+    const u32 remaining_width = width > large_screen.GetWidth() ? width - large_screen.GetWidth() : 0;
+    if (remaining_width == 0) {
+        return LargeFrameLayout(width, height, swapped);
+    }
+
+    Common::Rectangle<u32> remaining_area{0, 0, remaining_width, height};
+    Common::Rectangle<u32> small_screen = maxRectangle(remaining_area, small_screen_aspect_ratio);
+    small_screen = small_screen.TranslateX(large_screen.right)
+                               .TranslateY((height - small_screen.GetHeight()) / 2);
+
+    res.top_screen = swapped ? small_screen : large_screen;
+    res.bottom_screen = swapped ? large_screen : small_screen;
+    return res;
+}
+
+FramebufferLayout LargeFrameLayoutTop(u32 width, u32 height, bool swapped, float scale_ratio) {
+    FramebufferLayout res{width, height, true, true, {}, {}};
+
+    const float clamped_ratio = std::clamp(scale_ratio, 0.25f, 1.0f);
+    const float primary_width = swapped ? Core::kScreenBottomWidth : Core::kScreenTopWidth;
+    const float primary_height = swapped ? Core::kScreenBottomHeight : Core::kScreenTopHeight;
+    const float secondary_width = swapped ? Core::kScreenTopWidth : Core::kScreenBottomWidth;
+    const float secondary_height = swapped ? Core::kScreenTopHeight : Core::kScreenBottomHeight;
+
+    const float total_width = primary_width + (secondary_width * clamped_ratio);
+    const float total_height = std::max(primary_height, secondary_height * clamped_ratio);
+    const FramebufferLayout large_layout = LargeFrameLayout(width, height, swapped);
+    const Common::Rectangle<u32>& large_primary = swapped ? large_layout.bottom_screen
+                                                          : large_layout.top_screen;
+    const Common::Rectangle<u32>& large_secondary = swapped ? large_layout.top_screen
+                                                            : large_layout.bottom_screen;
+    // Keep the top-aligned layout inside the original Large layout envelope so it stays within the
+    // same on-screen bounds on Android devices.
+    const float large_layout_width_limit =
+        static_cast<float>(large_secondary.right - large_primary.left);
+    const float large_layout_height_limit = static_cast<float>(large_primary.GetHeight());
+    const float base_scale =
+        std::min(large_layout_width_limit / total_width,
+                 large_layout_height_limit / total_height);
+
+    const u32 primary_rect_width = static_cast<u32>(std::round(primary_width * base_scale));
+    const u32 primary_rect_height = static_cast<u32>(std::round(primary_height * base_scale));
+    const u32 secondary_rect_width =
+        static_cast<u32>(std::round(secondary_width * clamped_ratio * base_scale));
+    const u32 secondary_rect_height =
+        static_cast<u32>(std::round(secondary_height * clamped_ratio * base_scale));
+
+    const u32 layout_width = primary_rect_width + secondary_rect_width;
+    const u32 layout_left = large_secondary.right - layout_width;
+    const u32 layout_height = std::max(primary_rect_height, secondary_rect_height);
+    const u32 layout_top =
+        large_primary.top + (large_primary.GetHeight() - layout_height) / 2;
+
+    const Common::Rectangle<u32> primary_screen{layout_left, layout_top,
+                                                layout_left + primary_rect_width,
+                                                layout_top + primary_rect_height};
+    const Common::Rectangle<u32> secondary_screen{
+        primary_screen.right, layout_top, primary_screen.right + secondary_rect_width,
+        layout_top + secondary_rect_height};
+
+    res.top_screen = swapped ? secondary_screen : primary_screen;
+    res.bottom_screen = swapped ? primary_screen : secondary_screen;
+    return res;
+}
+
+FramebufferLayout LargeFrameLayoutTopAndroid(u32 width, u32 height, bool swapped,
+                                             float scale_ratio) {
+    FramebufferLayout res{width, height, true, true, {}, {}};
+
+    const float clamped_ratio = std::clamp(scale_ratio, 0.25f, 1.0f);
+    const float primary_width = swapped ? Core::kScreenBottomWidth : Core::kScreenTopWidth;
+    const float primary_height = swapped ? Core::kScreenBottomHeight : Core::kScreenTopHeight;
+    const float secondary_width = swapped ? Core::kScreenTopWidth : Core::kScreenBottomWidth;
+    const float secondary_height = swapped ? Core::kScreenTopHeight : Core::kScreenBottomHeight;
+    const float small_screen_aspect_ratio = swapped ? TOP_SCREEN_ASPECT_RATIO : BOT_SCREEN_ASPECT_RATIO;
+
+    const FramebufferLayout large_layout = LargeFrameLayoutAndroid(width, height, swapped);
+    const Common::Rectangle<u32>& large_primary =
+        swapped ? large_layout.bottom_screen : large_layout.top_screen;
+
+    const float primary_scale = static_cast<float>(large_primary.GetHeight()) / primary_height;
+    const u32 requested_secondary_width = static_cast<u32>(
+        std::round(secondary_width * clamped_ratio * primary_scale));
+    const u32 requested_secondary_height = static_cast<u32>(
+        std::round(secondary_height * clamped_ratio * primary_scale));
+    const u32 remaining_width = width > large_primary.right ? width - large_primary.right : 0;
+
+    if (requested_secondary_width == 0 || requested_secondary_height == 0) {
+        return LargeFrameLayoutTop(width, height, swapped, scale_ratio);
+    }
+
+    Common::Rectangle<u32> primary_screen = large_primary;
+    Common::Rectangle<u32> secondary_screen{};
+
+    if (requested_secondary_width <= remaining_width) {
+        Common::Rectangle<u32> secondary_area{0, 0, requested_secondary_width, requested_secondary_height};
+        secondary_screen = maxRectangle(secondary_area, small_screen_aspect_ratio)
+                               .TranslateX(large_primary.right)
+                               .TranslateY(large_primary.top);
+    } else {
+        const float total_width = primary_width + (secondary_width * clamped_ratio);
+        const float total_height = std::max(primary_height, secondary_height * clamped_ratio);
+        const float base_scale =
+            std::min(static_cast<float>(width) / total_width,
+                     static_cast<float>(height) / total_height);
+
+        const u32 primary_rect_width = static_cast<u32>(std::round(primary_width * base_scale));
+        const u32 primary_rect_height = static_cast<u32>(std::round(primary_height * base_scale));
+        const u32 secondary_rect_width =
+            static_cast<u32>(std::round(secondary_width * clamped_ratio * base_scale));
+        const u32 secondary_rect_height =
+            static_cast<u32>(std::round(secondary_height * clamped_ratio * base_scale));
+        const u32 layout_height = std::max(primary_rect_height, secondary_rect_height);
+        const u32 layout_top = (height - layout_height) / 2;
+
+        primary_screen = {0, layout_top, primary_rect_width, layout_top + primary_rect_height};
+        secondary_screen = {primary_screen.right, layout_top,
+                            primary_screen.right + secondary_rect_width,
+                            layout_top + secondary_rect_height};
+    }
+
+    res.top_screen = swapped ? secondary_screen : primary_screen;
+    res.bottom_screen = swapped ? primary_screen : secondary_screen;
+    return res;
+}
+
+u16 GetLargeFrameLayoutTopAndroidMaxFillProportion(u32 width, u32 height, bool swapped) {
+    if (width == 0 || height == 0) {
+        return 75;
+    }
+
+    const float primary_height = swapped ? Core::kScreenBottomHeight : Core::kScreenTopHeight;
+    const float secondary_width = swapped ? Core::kScreenTopWidth : Core::kScreenBottomWidth;
+    const FramebufferLayout large_layout = LargeFrameLayoutAndroid(width, height, swapped);
+    const Common::Rectangle<u32>& large_primary =
+        swapped ? large_layout.bottom_screen : large_layout.top_screen;
+    const u32 remaining_width = width > large_primary.right ? width - large_primary.right : 0;
+
+    if (remaining_width == 0 || large_primary.GetHeight() == 0 || secondary_width == 0.0f) {
+        return 25;
+    }
+
+    const float primary_scale = static_cast<float>(large_primary.GetHeight()) / primary_height;
+    const float proportion = static_cast<float>(remaining_width) / (secondary_width * primary_scale);
+    return static_cast<u16>(std::clamp(std::round(proportion * 100.0f), 25.0f, 100.0f));
 }
 
 FramebufferLayout SideFrameLayout(u32 width, u32 height, bool swapped) {

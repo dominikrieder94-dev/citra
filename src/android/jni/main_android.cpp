@@ -12,6 +12,7 @@
 #include "core/cheats/cheats.h"
 #include "core/core.h"
 #include "core/frontend/applets/default_applets.h"
+#include "core/frontend/framebuffer_layout.h"
 #include "core/frontend/mic.h"
 #include "core/hle/service/am/am.h"
 #include "core/hle/service/cfg/cfg.h"
@@ -37,13 +38,40 @@
 
 static ANativeWindow* s_surface = nullptr;
 
+#define CITRA_ANDROID_LOG(...) __android_log_print(ANDROID_LOG_INFO, "citra", __VA_ARGS__)
+
 static std::atomic<bool> s_update_hid;
 static std::atomic<bool> s_stop_running;
 static std::atomic<bool> s_is_running;
+static std::atomic<u64> s_do_frame_count;
+static std::atomic<u64> s_runloop_count;
 static std::mutex s_running_mutex;
 static std::condition_variable s_running_cv;
 static std::unique_ptr<EGLAndroid> s_render_window;
 static std::shared_ptr<AndroidKeyboard> s_keyboard;
+
+static std::string GetAndroidAudioOutputSink(u8 output_type) {
+    switch (output_type) {
+    case 1:
+        return "null";
+    case 2:
+        return "cubeb";
+    default:
+        return "auto";
+    }
+}
+
+static Settings::MicInputType GetAndroidMicInputType(u8 input_type) {
+    switch (input_type) {
+    case 2:
+        return Settings::MicInputType::Static;
+    case 3:
+        return Settings::MicInputType::Real;
+    case 1:
+    default:
+        return Settings::MicInputType::None;
+    }
+}
 
 struct GameInfo {
     u64 id;
@@ -57,6 +85,7 @@ struct GameInfo {
 static std::map<std::string, GameInfo> s_app_dict;
 
 void BootGame(const std::string& path) {
+    CITRA_ANDROID_LOG("BootGame start: %s", path.c_str());
     NativeLibrary::UpdateProgress("BootGame", 0, 1);
 
     s_render_window = std::make_unique<EGLAndroid>(Settings::values.use_present_thread);
@@ -72,6 +101,7 @@ void BootGame(const std::string& path) {
     // cfg->UpdateConfigNANDSavegame();
 
     Core::System::ResultStatus result = system.Load(*s_render_window, path);
+    CITRA_ANDROID_LOG("system.Load result=%u", static_cast<u32>(result));
     if (result != Core::System::ResultStatus::Success) {
         switch (result) {
         case Core::System::ResultStatus::ErrorGetLoader:
@@ -115,6 +145,7 @@ void BootGame(const std::string& path) {
             break;
         }
         s_render_window.reset();
+        CITRA_ANDROID_LOG("BootGame abort during load: result=%u", static_cast<u32>(result));
         return;
     }
 
@@ -126,15 +157,26 @@ void BootGame(const std::string& path) {
     s_update_hid = false;
     s_stop_running = false;
     s_is_running = true;
+    s_runloop_count = 0;
     while (!s_stop_running) {
         if (s_is_running) {
             result = system.RunLoop();
+            if (result != Core::System::ResultStatus::Success) {
+                CITRA_ANDROID_LOG("system.RunLoop result=%u stop=%d running=%d count=%llu",
+                                  static_cast<u32>(result),
+                                  static_cast<int>(s_stop_running.load()),
+                                  static_cast<int>(s_is_running.load()),
+                                  static_cast<unsigned long long>(++s_runloop_count));
+            }
             if (result == Core::System::ResultStatus::ShutdownRequested) {
                 // End emulation execution
                 s_render_window->UpdateSurface(nullptr);
+                CITRA_ANDROID_LOG("BootGame received ShutdownRequested");
                 break;
             } else if (result != Core::System::ResultStatus::Success) {
                 s_stop_running = true;
+                CITRA_ANDROID_LOG("BootGame stopping due to error result=%u details=%s",
+                                  static_cast<u32>(result), system.GetStatusDetails().c_str());
                 NativeLibrary::ShowMessageDialog(0, fmt::format("Error {}: {}",
                                                                 static_cast<u32>(result),
                                                                 system.GetStatusDetails()));
@@ -146,14 +188,18 @@ void BootGame(const std::string& path) {
             }
         } else {
             // Ensure no audio bleeds out while game is paused
-            const float volume = Settings::values.volume;
-            Settings::values.volume = 0;
+            const float volume = Settings::values.audio_volume;
+            Settings::values.audio_volume = 0;
 
             std::unique_lock lock{s_running_mutex};
             s_running_cv.wait(lock, [] { return s_is_running || s_stop_running; });
             s_render_window->PollEvents();
-            Settings::values.volume = volume;
+            Settings::values.audio_volume = volume;
         }
+    }
+
+    if (s_stop_running && result == Core::System::ResultStatus::Success) {
+        CITRA_ANDROID_LOG("BootGame loop ended because stop flag was set externally");
     }
 
     // Shutdown the core emulation
@@ -164,6 +210,7 @@ void BootGame(const std::string& path) {
     s_is_running = false;
     resetSearchResults();
     Config::Save();
+    CITRA_ANDROID_LOG("BootGame end");
 }
 
 static bool GetSMDHData(Loader::AppLoader* loader, Loader::SMDH* smdh) {
@@ -246,6 +293,7 @@ static void UpdateDisplayRotation() {
     // custom layout
     if (NativeLibrary::IsPortrait()) {
         Settings::values.layout_option = Config::Get(Config::LAYOUT_OPTION);
+        Settings::values.large_screen_proportion = Config::Get(Config::LARGE_SCREEN_PROPORTION);
         Settings::values.custom_top_left = Config::Get(Config::PORTRAIT_TOP_LEFT);
         Settings::values.custom_top_top = Config::Get(Config::PORTRAIT_TOP_TOP);
         Settings::values.custom_top_right = Config::Get(Config::PORTRAIT_TOP_RIGHT);
@@ -258,6 +306,8 @@ static void UpdateDisplayRotation() {
         Settings::values.swap_screen = Config::Get(Config::PORTRAIT_SWAP_SCREEN);
     } else {
         Settings::values.layout_option = Config::Get(Config::LANDSCAPE_LAYOUT_OPTION);
+        Settings::values.large_screen_proportion =
+            Config::Get(Config::LANDSCAPE_LARGE_SCREEN_PROPORTION);
         Settings::values.custom_top_left = Config::Get(Config::LANDSCAPE_TOP_LEFT);
         Settings::values.custom_top_top = Config::Get(Config::LANDSCAPE_TOP_TOP);
         Settings::values.custom_top_right = Config::Get(Config::LANDSCAPE_TOP_RIGHT);
@@ -269,6 +319,18 @@ static void UpdateDisplayRotation() {
         Settings::values.custom_layout = Config::Get(Config::LANDSCAPE_CUSTOM_LAYOUT);
         Settings::values.swap_screen = Config::Get(Config::LANDSCAPE_SWAP_SCREEN);
     }
+
+    CITRA_ANDROID_LOG(
+        "UpdateDisplayRotation rotation=%d portrait=%d layout_option=%d custom_layout=%d "
+        "top=(%u,%u,%u,%u) bottom=(%u,%u,%u,%u)",
+        static_cast<int>(NativeLibrary::current_display_rotation.load()),
+        NativeLibrary::IsPortrait() ? 1 : 0,
+        static_cast<int>(Settings::values.layout_option),
+        Settings::values.custom_layout ? 1 : 0, Settings::values.custom_top_left,
+        Settings::values.custom_top_top, Settings::values.custom_top_right,
+        Settings::values.custom_top_bottom, Settings::values.custom_bottom_left,
+        Settings::values.custom_bottom_top, Settings::values.custom_bottom_right,
+        Settings::values.custom_bottom_bottom);
 }
 
 #ifdef __cplusplus
@@ -304,15 +366,21 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_SetUserPath(JNIEnv* env,
     if (path[path.size() - 1] != '/')
         path.push_back('/');
     FileUtil::SetUserPath(path);
+    CITRA_ANDROID_LOG("SetUserPath: %s", path.c_str());
 
     // create user directory
     FileUtil::CreateFullPath(FileUtil::GetUserPath(FileUtil::UserPath::AmiiboDir));
     FileUtil::CreateFullPath(FileUtil::GetUserPath(FileUtil::UserPath::CacheDir));
     FileUtil::CreateFullPath(FileUtil::GetUserPath(FileUtil::UserPath::ConfigDir));
     FileUtil::CreateFullPath(FileUtil::GetUserPath(FileUtil::UserPath::LogDir));
-    if (!FileUtil::Exists(FileUtil::GetUserPath(FileUtil::UserPath::ConfigDir) +
-                          "config-mmj.ini")) {
+    const std::string config_path =
+        FileUtil::GetUserPath(FileUtil::UserPath::ConfigDir) + "config-mmj.ini";
+    CITRA_ANDROID_LOG("Config path: %s exists=%d", config_path.c_str(),
+                      static_cast<int>(FileUtil::Exists(config_path)));
+    if (!FileUtil::Exists(config_path)) {
         Config::SaveDefault();
+        CITRA_ANDROID_LOG("Config::SaveDefault written: %s exists_now=%d", config_path.c_str(),
+                          static_cast<int>(FileUtil::Exists(config_path)));
     }
 
     // Register frontend applets
@@ -364,6 +432,10 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_WindowChanged(JNIEnv* en
 JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_DoFrame(JNIEnv* env, jclass obj) {
     if (!s_is_running || s_stop_running) {
         return;
+    }
+    const auto frame_count = ++s_do_frame_count;
+    if ((frame_count % 120) == 0) {
+        CITRA_ANDROID_LOG("DoFrame callbacks=%llu", static_cast<unsigned long long>(frame_count));
     }
     s_render_window->TryPresenting();
 }
@@ -435,6 +507,7 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_MoveEvent(JNIEnv* env, j
 
 JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_Run(JNIEnv* env, jclass obj,
                                                             jstring jFile) {
+    CITRA_ANDROID_LOG("NativeLibrary.Run enter");
     NativeLibrary::Initialize(env);
     // reload config
     Config::Clear();
@@ -446,15 +519,15 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_Run(JNIEnv* env, jclass 
     Settings::values.region_value = Config::Get(Config::SYSTEM_REGION);
     Settings::values.shared_font_type = Config::Get(Config::SHARED_FONT_TYPE);
     // renderer
-    Settings::values.use_direct_display = true;
+    Settings::values.use_direct_display = false;
     Settings::values.accurate_max_min = false;
     Settings::values.accurate_rcp_rsq = false;
     Settings::values.skip_load_buffer = false;
     Settings::values.merge_framebuffer = false;
-    Settings::values.use_hw_gs = Config::Get(Config::USE_HW_GS);
+    Settings::values.hw_gs_mode = Config::Get(Config::HW_GS_MODE);
     Settings::values.use_gles = Config::Get(Config::USE_GLES);
     Settings::values.show_fps = Config::Get(Config::SHOW_FPS);
-    Settings::values.use_hw_renderer = Config::Get(Config::USE_HW_RENDERER);
+    Settings::values.use_hw_renderer = true;
     Settings::values.use_hw_shader = Config::Get(Config::USE_HW_SHADER);
     Settings::values.use_shader_jit = Config::Get(Config::USE_SHADER_JIT);
     Settings::values.shaders_accurate_mul = Config::Get(Config::SHADERS_ACCURATE_MUL);
@@ -468,16 +541,21 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_Run(JNIEnv* env, jclass 
     // audio
     Settings::values.enable_dsp_lle = Config::Get(Config::ENABLE_DSP_LLE);
     Settings::values.enable_dsp_lle_multithread = Config::Get(Config::DSP_LLE_MULTITHREAD);
-    Settings::values.volume = Config::Get(Config::AUDIO_VOLUME);
-    Settings::values.sink_id = Config::Get(Config::AUDIO_ENGINE);
-    Settings::values.audio_device_id = Config::Get(Config::AUDIO_DEVICE);
+    Settings::values.audio_volume = Config::Get(Config::AUDIO_VOLUME);
+    Settings::values.sink_id = GetAndroidAudioOutputSink(Config::Get(Config::AUDIO_OUTPUT_TYPE));
+    Settings::values.audio_device_id = Config::Get(Config::AUDIO_OUTPUT_DEVICE);
     Settings::values.enable_audio_stretching = Config::Get(Config::AUDIO_STRETCHING);
     // mic
-    Settings::values.mic_input_type = Config::Get(Config::MIC_INPUT_TYPE);
-    Settings::values.mic_input_device = Config::Get(Config::MIC_INPUT_DEVICE);
+    Settings::values.mic_input_type = GetAndroidMicInputType(Config::Get(Config::AUDIO_INPUT_TYPE));
+    Settings::values.mic_input_device = Config::Get(Config::AUDIO_INPUT_DEVICE);
     // debug
     Settings::values.shadow_rendering = Config::Get(Config::SHADOW_RENDERING);
     Settings::values.use_present_thread = Config::Get(Config::USE_PRESENT_THREAD);
+#ifdef ANDROID
+    // The Android renderer is currently running on the direct swap path.
+    // Keep EGL on the window context instead of the shared pbuffer context.
+    Settings::values.use_present_thread = false;
+#endif
     Settings::values.core_downcount_hack = Config::Get(Config::CPU_USAGE_LIMIT);
     u8 shaderType = Config::Get(Config::SHADER_TYPE);
     if (shaderType == 0) {
@@ -493,7 +571,11 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_Run(JNIEnv* env, jclass 
     Settings::SetLLEModules(Config::Get(Config::LLE_MODULES));
     // custom layout
     Settings::values.swap_screen = false;
-    Settings::values.custom_layout = Config::Get(Config::USE_CUSTOM_LAYOUT);
+    if (NativeLibrary::IsPortrait()) {
+        Settings::values.custom_layout = Config::Get(Config::PORTRAIT_CUSTOM_LAYOUT);
+    } else {
+        Settings::values.custom_layout = Config::Get(Config::LANDSCAPE_CUSTOM_LAYOUT);
+    }
     UpdateDisplayRotation();
     //
     Settings::values.init_clock = Settings::InitClock::SystemTime;
@@ -509,6 +591,7 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_Run(JNIEnv* env, jclass 
     Settings::values.force_texture_filter = 0;
     Settings::values.stream_buffer_hack = !Settings::values.use_present_thread;
     Settings::values.use_fence_sync = Config::Get(Config::USE_FENCE_SYNC);
+    s_do_frame_count = 0;
 
     // profile
     InputManager::GetInstance().Init();
@@ -534,6 +617,7 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_Run(JNIEnv* env, jclass 
 
     // shotdown
     InputManager::GetInstance().Shutdown();
+    CITRA_ANDROID_LOG("NativeLibrary.Run exit -> Shutdown");
     NativeLibrary::Shutdown(env);
 }
 
@@ -549,16 +633,22 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_PauseEmulation(JNIEnv* e
     s_running_cv.notify_all();
 }
 
-JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_StopEmulation(JNIEnv* env, jclass obj) {
+JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_nativeStopEmulation(JNIEnv* env,
+                                                                            jclass obj) {
+    CITRA_ANDROID_LOG("nativeStopEmulation invoked render_window=%p running=%d stop=%d",
+                      s_render_window.get(), static_cast<int>(s_is_running.load()),
+                      static_cast<int>(s_stop_running.load()));
     s_stop_running = true;
-    s_render_window->StopPresenting();
+    if (s_render_window) {
+        s_render_window->StopPresenting();
+    }
     s_running_cv.notify_all();
 }
 
 JNIEXPORT jintArray JNICALL Java_org_citra_emu_NativeLibrary_getRunningSettings(JNIEnv* env,
                                                                                 jclass obj) {
     int i = 0;
-    int settings[13];
+    int settings[15];
 
     // get settings
     settings[i++] = Settings::values.core_ticks_hack > 0;
@@ -566,11 +656,13 @@ JNIEXPORT jintArray JNICALL Java_org_citra_emu_NativeLibrary_getRunningSettings(
     settings[i++] = Settings::values.skip_cpu_write;
     settings[i++] = Settings::values.skip_texture_copy;
     settings[i++] = Settings::values.force_texture_filter;
-    settings[i++] = Settings::values.use_hw_gs;
+    settings[i++] = Settings::values.hw_gs_mode;
     settings[i++] = Settings::values.shadow_rendering;
     settings[i++] = Settings::values.async_shader_compile;
+    settings[i++] = Settings::values.use_compatible_mode;
     settings[i++] = std::min(std::max(Settings::values.resolution_factor - 1, 0), 3);
     settings[i++] = static_cast<int>(Settings::values.layout_option);
+    settings[i++] = Settings::values.large_screen_proportion;
     settings[i++] = static_cast<int>(Settings::values.shaders_accurate_mul);
     settings[i++] = Settings::values.custom_layout;
     settings[i++] = Settings::values.frame_limit;
@@ -578,6 +670,21 @@ JNIEXPORT jintArray JNICALL Java_org_citra_emu_NativeLibrary_getRunningSettings(
     jintArray array = env->NewIntArray(i);
     env->SetIntArrayRegion(array, 0, i, settings);
     return array;
+}
+
+JNIEXPORT jint JNICALL Java_org_citra_emu_NativeLibrary_getLargeScreenTopAutoFitProportion(
+    JNIEnv* env, jclass obj) {
+    if (!s_render_window) {
+        return std::clamp(static_cast<int>(Settings::values.large_screen_proportion), 25, 100);
+    }
+
+    const auto& framebuffer_layout = s_render_window->GetFramebufferLayout();
+    if (framebuffer_layout.width == 0 || framebuffer_layout.height == 0) {
+        return std::clamp(static_cast<int>(Settings::values.large_screen_proportion), 25, 100);
+    }
+
+    return Layout::GetLargeFrameLayoutTopAndroidMaxFillProportion(
+        framebuffer_layout.width, framebuffer_layout.height, Settings::values.swap_screen);
 }
 
 JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_setRunningSettings(JNIEnv* env, jclass obj,
@@ -604,9 +711,9 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_setRunningSettings(JNIEn
     Settings::values.force_texture_filter = settings[i++];
     Config::Set(Config::FORCE_TEXTURE_FILTER, Settings::values.force_texture_filter);
 
-    // Use HW GS
-    Settings::values.use_hw_gs = settings[i++] > 0;
-    Config::Set(Config::USE_HW_GS, Settings::values.use_hw_gs);
+    // HW GS mode
+    Settings::values.hw_gs_mode = static_cast<u8>(std::clamp(settings[i++], 0, 2));
+    Config::Set(Config::HW_GS_MODE, Settings::values.hw_gs_mode);
 
     // Shadow Rendering
     Settings::values.shadow_rendering = settings[i++] > 0;
@@ -615,6 +722,10 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_setRunningSettings(JNIEn
     // Async Shader Compile
     Settings::values.async_shader_compile = settings[i++] > 0;
     Config::Set(Config::ASYNC_SHADER_COMPILE, Settings::values.async_shader_compile);
+
+    // Compatible Mode
+    Settings::values.use_compatible_mode = settings[i++] > 0;
+    Config::Set(Config::USE_COMPATIBLE_MODE, Settings::values.use_compatible_mode);
 
     // Scale Factor
     Settings::values.resolution_factor = settings[i++] + 1;
@@ -628,13 +739,26 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_setRunningSettings(JNIEn
         Config::Set(Config::LANDSCAPE_LAYOUT_OPTION, Settings::values.layout_option);
     }
 
+    // Top-aligned large-screen secondary scale
+    Settings::values.large_screen_proportion = std::clamp(settings[i++], 25, 100);
+    if (NativeLibrary::IsPortrait()) {
+        Config::Set(Config::LARGE_SCREEN_PROPORTION, Settings::values.large_screen_proportion);
+    } else {
+        Config::Set(Config::LANDSCAPE_LARGE_SCREEN_PROPORTION,
+                    Settings::values.large_screen_proportion);
+    }
+
     // Accurate Mul
     Settings::values.shaders_accurate_mul = static_cast<Settings::AccurateMul>(settings[i++]);
     Config::Set(Config::SHADERS_ACCURATE_MUL, Settings::values.shaders_accurate_mul);
 
     // Custom Layout
     Settings::values.custom_layout = settings[i++] > 0;
-    Config::Set(Config::USE_CUSTOM_LAYOUT, Settings::values.custom_layout);
+    if (NativeLibrary::IsPortrait()) {
+        Config::Set(Config::PORTRAIT_CUSTOM_LAYOUT, Settings::values.custom_layout);
+    } else {
+        Config::Set(Config::LANDSCAPE_CUSTOM_LAYOUT, Settings::values.custom_layout);
+    }
 
     // Frame Limit
     Settings::values.frame_limit = std::max(settings[i++], 1);

@@ -11,20 +11,24 @@ target_include_directories(catch-single-include INTERFACE catch/single_include)
 # Crypto++
 add_subdirectory(cryptopp)
 
+# libfmt
+add_subdirectory(fmt)
+add_library(fmt::fmt ALIAS fmt)
+
 # Dynarmic
 if (ARCHITECTURE_x86_64 OR ARCHITECTURE_ARM64)
     if (ARCHITECTURE_x86_64)
         # Dynarmic will skip defining xbyak if it's already defined, we then define it below
         add_library(xbyak INTERFACE)
     endif()
-    option(DYNARMIC_TESTS OFF)
+    set(DYNARMIC_TESTS OFF CACHE BOOL "" FORCE)
+    set(DYNARMIC_USE_PRECOMPILED_HEADERS OFF CACHE BOOL "" FORCE)
     set(DYNARMIC_NO_BUNDLED_FMT ON)
     add_subdirectory(dynarmic)
+    if (ARCHITECTURE_ARM64)
+        target_include_directories(dynarmic PRIVATE ./dynarmic/externals/oaknut/include)
+    endif()
 endif()
-
-# libfmt
-add_subdirectory(fmt)
-add_library(fmt::fmt ALIAS fmt)
 
 # getopt
 if (MSVC)
@@ -58,9 +62,11 @@ add_subdirectory(open_source_archives)
 add_subdirectory(minilzo)
 
 # SoundTouch
+set(INTEGER_SAMPLES ON CACHE BOOL "" FORCE)
+set(SOUNDSTRETCH OFF CACHE BOOL "" FORCE)
 add_subdirectory(soundtouch)
-# The SoundTouch target doesn't export the necessary include paths as properties by default
-target_include_directories(SoundTouch INTERFACE ./soundtouch/include)
+# Keep emulator consumers on the same integer-sample ABI as the library target.
+target_compile_definitions(SoundTouch INTERFACE SOUNDTOUCH_INTEGER_SAMPLES)
 
 # Teakra
 add_subdirectory(teakra)

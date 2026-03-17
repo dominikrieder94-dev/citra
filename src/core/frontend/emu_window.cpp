@@ -105,6 +105,7 @@ void EmuWindow::TouchMoved(unsigned framebuffer_x, unsigned framebuffer_y) {
 
 void EmuWindow::UpdateFramebufferLayout(u32 width, u32 height) {
     Layout::FramebufferLayout layout;
+    bool android_large_full_width = false;
     if (Settings::values.custom_layout) {
         layout = Layout::CustomFrameLayout(width, height);
         if (Settings::values.swap_screen) {
@@ -117,7 +118,24 @@ void EmuWindow::UpdateFramebufferLayout(u32 width, u32 height) {
             layout = Layout::SingleFrameLayout(width, height, Settings::values.swap_screen);
             break;
         case Settings::LayoutOption::LargeScreen:
+#ifdef ANDROID
+            layout = Layout::LargeFrameLayoutAndroid(width, height, Settings::values.swap_screen);
+            android_large_full_width = true;
+#else
             layout = Layout::LargeFrameLayout(width, height, Settings::values.swap_screen);
+#endif
+            break;
+        case Settings::LayoutOption::LargeScreenTop:
+#ifdef ANDROID
+            layout = Layout::LargeFrameLayoutTopAndroid(
+                width, height, Settings::values.swap_screen,
+                Settings::values.large_screen_proportion / 100.0f);
+            android_large_full_width = true;
+#else
+            layout = Layout::LargeFrameLayoutTop(
+                width, height, Settings::values.swap_screen,
+                Settings::values.large_screen_proportion / 100.0f);
+#endif
             break;
         case Settings::LayoutOption::SideScreen:
             width -= safe_inset_left + safe_inset_right;
@@ -130,28 +148,39 @@ void EmuWindow::UpdateFramebufferLayout(u32 width, u32 height) {
             break;
         }
         if (Settings::values.swap_screen) {
-            if (safe_inset_left > layout.bottom_screen.left) {
+            if (!android_large_full_width && safe_inset_left > layout.bottom_screen.left) {
                 u32 offset = safe_inset_left - layout.bottom_screen.left;
                 layout.top_screen = layout.top_screen.TranslateX(offset);
                 layout.bottom_screen = layout.bottom_screen.TranslateX(offset);
             }
-            if (safe_inset_top > layout.bottom_screen.top) {
+            if (!android_large_full_width && safe_inset_top > layout.bottom_screen.top) {
                 u32 offset = safe_inset_top - layout.bottom_screen.top;
                 layout.top_screen = layout.top_screen.TranslateY(offset);
                 layout.bottom_screen = layout.bottom_screen.TranslateY(offset);
             }
         } else {
-            if (safe_inset_left > layout.top_screen.left) {
+            if (!android_large_full_width && safe_inset_left > layout.top_screen.left) {
                 u32 offset = safe_inset_left - layout.top_screen.left;
                 layout.top_screen = layout.top_screen.TranslateX(offset);
                 layout.bottom_screen = layout.bottom_screen.TranslateX(offset);
             }
-            if (safe_inset_top > layout.top_screen.top) {
+            if (!android_large_full_width && safe_inset_top > layout.top_screen.top) {
                 u32 offset = safe_inset_top - layout.top_screen.top;
                 layout.top_screen = layout.top_screen.TranslateY(offset);
                 layout.bottom_screen = layout.bottom_screen.TranslateY(offset);
             }
         }
+#ifdef ANDROID
+        if (android_large_full_width) {
+            const u32 current_right = std::max(layout.top_screen.right, layout.bottom_screen.right);
+            const u32 desired_right = width;
+            if (current_right < desired_right) {
+                const u32 offset = desired_right - current_right;
+                layout.top_screen = layout.top_screen.TranslateX(offset);
+                layout.bottom_screen = layout.bottom_screen.TranslateX(offset);
+            }
+        }
+#endif
     }
     NotifyFramebufferLayoutChanged(layout);
 }

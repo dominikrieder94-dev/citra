@@ -2,6 +2,7 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include <atomic>
 #include <cstring>
 #include <numeric>
 #include <type_traits>
@@ -25,10 +26,18 @@
 #include "video_core/utils.h"
 #include "video_core/video_core.h"
 
+#ifdef ANDROID
+#include <android/log.h>
+#define CITRA_GPU_ANDROID_LOG(...) __android_log_print(ANDROID_LOG_INFO, "citra", __VA_ARGS__)
+#else
+#define CITRA_GPU_ANDROID_LOG(...) ((void)0)
+#endif
+
 namespace GPU {
 
 Regs g_regs;
 Memory::MemorySystem* g_memory;
+static std::atomic<u32> s_display_transfer_log_count{0};
 
 /// 268MHz CPU clocks / 60Hz frames per second
 const u64 frame_ticks = static_cast<u64>(BASE_CLOCK_RATE_ARM11 / SCREEN_REFRESH_RATE);
@@ -127,6 +136,25 @@ static void MemoryFill(const Regs::MemoryFillConfig& config) {
 static void DisplayTransfer(const Regs::DisplayTransferConfig& config) {
     const PAddr src_addr = config.GetPhysicalInputAddress();
     const PAddr dst_addr = config.GetPhysicalOutputAddress();
+    const u32 transfer_log_index = s_display_transfer_log_count.fetch_add(1);
+
+    if (transfer_log_index < 16) {
+        LOG_ERROR(HW_GPU,
+                  "DisplayTransfer[{}] src={:#010x} dst={:#010x} in={}x{} out={}x{} "
+                  "input_linear={} flip_vertically={} scaling={} in_fmt={} out_fmt={}",
+                  transfer_log_index, src_addr, dst_addr, config.input_width.Value(),
+                  config.input_height.Value(), config.output_width.Value(),
+                  config.output_height.Value(), config.input_linear ? 1 : 0,
+                  config.flip_vertically ? 1 : 0, config.scaling.Value(),
+                  config.input_format.Value(), config.output_format.Value());
+        CITRA_GPU_ANDROID_LOG(
+            "DisplayTransfer[%u] src=%08x dst=%08x in=%ux%u out=%ux%u input_linear=%u "
+            "flip_vertically=%u scaling=%u in_fmt=%u out_fmt=%u",
+            transfer_log_index, src_addr, dst_addr, config.input_width.Value(),
+            config.input_height.Value(), config.output_width.Value(), config.output_height.Value(),
+            config.input_linear ? 1 : 0, config.flip_vertically ? 1 : 0, config.scaling.Value(),
+            config.input_format.Value(), config.output_format.Value());
+    }
 
     u8* src_pointer = g_memory->GetPhysicalPointer(src_addr);
     if (!src_pointer) {
@@ -160,8 +188,18 @@ static void DisplayTransfer(const Regs::DisplayTransferConfig& config) {
         return;
     }
 
-    if (VideoCore::Rasterizer()->AccelerateDisplayTransfer(config))
+    if (VideoCore::Rasterizer()->AccelerateDisplayTransfer(config)) {
+        if (transfer_log_index < 16) {
+            LOG_ERROR(HW_GPU, "DisplayTransfer[{}] accelerated=1", transfer_log_index);
+            CITRA_GPU_ANDROID_LOG("DisplayTransfer[%u] accelerated=1", transfer_log_index);
+        }
         return;
+    }
+
+    if (transfer_log_index < 16) {
+        LOG_ERROR(HW_GPU, "DisplayTransfer[{}] accelerated=0", transfer_log_index);
+        CITRA_GPU_ANDROID_LOG("DisplayTransfer[%u] accelerated=0", transfer_log_index);
+    }
 
     if (config.scaling > config.ScaleXY) {
         LOG_CRITICAL(HW_GPU, "Unimplemented display transfer scaling mode {}",
@@ -457,6 +495,8 @@ inline void Write(u32 addr, const T data) {
         const auto& config = g_regs.command_processor_config;
         if (config.trigger & 1) {
             MICROPROFILE_SCOPE(GPU_CmdlistProcessing);
+            CITRA_GPU_ANDROID_LOG("CommandList trigger addr=%08x size=%u", config.GetPhysicalAddress(),
+                                  config.size);
 
             Pica::CommandProcessor::ProcessCommandList(config.GetPhysicalAddress(), config.size);
 

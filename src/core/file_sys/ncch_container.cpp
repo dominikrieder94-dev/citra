@@ -34,6 +34,11 @@ u64 GetModId(u64 program_id) {
     return program_id;
 }
 
+bool SupportsSplitPathOverrides(const std::string& path) {
+    constexpr std::string_view saf_prefix{"content://"};
+    return path.compare(0, saf_prefix.size(), saf_prefix) != 0;
+}
+
 /**
  * Get the decompressed size of an LZSS compressed ExeFS file
  * @param buffer Buffer of compressed file
@@ -359,10 +364,10 @@ Loader::ResultStatus NCCHContainer::Load() {
             const auto mods_path =
                 fmt::format("{}mods/{:016X}/", FileUtil::GetUserPath(FileUtil::UserPath::LoadDir),
                             GetModId(ncch_header.program_id));
-            const std::array<std::string, 2> exheader_override_paths{{
-                mods_path + "exheader.bin",
-                filepath + ".exheader",
-            }};
+            std::vector<std::string> exheader_override_paths{mods_path + "exheader.bin"};
+            if (SupportsSplitPathOverrides(filepath)) {
+                exheader_override_paths.emplace_back(filepath + ".exheader");
+            }
 
             bool has_exheader_override = false;
             for (const auto& path : exheader_override_paths) {
@@ -446,6 +451,10 @@ Loader::ResultStatus NCCHContainer::Load() {
 }
 
 Loader::ResultStatus NCCHContainer::LoadOverrides() {
+    if (!SupportsSplitPathOverrides(filepath)) {
+        return Loader::ResultStatus::Success;
+    }
+
     // Check for split-off files, mark the archive as tainted if we will use them
     std::string romfs_override = filepath + ".romfs";
     if (FileUtil::Exists(romfs_override)) {
@@ -583,14 +592,16 @@ Loader::ResultStatus NCCHContainer::ApplyCodePatch(std::vector<u8>& code) const 
     const auto mods_path =
         fmt::format("{}mods/{:016X}/", FileUtil::GetUserPath(FileUtil::UserPath::LoadDir),
                     GetModId(ncch_header.program_id));
-    const std::array<PatchLocation, 6> patch_paths{{
+    std::vector<PatchLocation> patch_paths{{
         {mods_path + "exefs/code.ips", Patch::ApplyIpsPatch},
         {mods_path + "exefs/code.bps", Patch::ApplyBpsPatch},
         {mods_path + "code.ips", Patch::ApplyIpsPatch},
         {mods_path + "code.bps", Patch::ApplyBpsPatch},
-        {filepath + ".exefsdir/code.ips", Patch::ApplyIpsPatch},
-        {filepath + ".exefsdir/code.bps", Patch::ApplyBpsPatch},
     }};
+    if (SupportsSplitPathOverrides(filepath)) {
+        patch_paths.push_back({filepath + ".exefsdir/code.ips", Patch::ApplyIpsPatch});
+        patch_paths.push_back({filepath + ".exefsdir/code.bps", Patch::ApplyBpsPatch});
+    }
 
     for (const PatchLocation& info : patch_paths) {
         FileUtil::IOFile file{info.path, "rb"};
@@ -629,11 +640,13 @@ Loader::ResultStatus NCCHContainer::LoadOverrideExeFSSection(const char* name,
     const auto mods_path =
         fmt::format("{}mods/{:016X}/", FileUtil::GetUserPath(FileUtil::UserPath::LoadDir),
                     GetModId(ncch_header.program_id));
-    const std::array<std::string, 3> override_paths{{
+    std::vector<std::string> override_paths{{
         mods_path + "exefs/" + override_name,
         mods_path + override_name,
-        filepath + ".exefsdir/" + override_name,
     }};
+    if (SupportsSplitPathOverrides(filepath)) {
+        override_paths.emplace_back(filepath + ".exefsdir/" + override_name);
+    }
 
     for (const auto& path : override_paths) {
         FileUtil::IOFile section_file(path, "rb");

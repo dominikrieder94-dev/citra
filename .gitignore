@@ -1,6 +1,7 @@
 # Build directory
 [Bb]uild/
 doc-build/
+src/android/build_*.log
 
 # Generated source files
 src/common/scm_rev.cpp
@@ -11,6 +12,7 @@ src/common/scm_rev.cpp
 .idea/
 .vs/
 .vscode/
+.codex/
 CMakeLists.txt.user*
 
 # *nix related

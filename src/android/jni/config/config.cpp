@@ -37,6 +37,9 @@ void SaveDefault() {
     s_layer.Set(FACTOR_3D, FACTOR_3D.default_value);
     s_layer.Set(USE_FENCE_SYNC, USE_FENCE_SYNC.default_value);
     s_layer.Set(LAYOUT_OPTION, LAYOUT_OPTION.default_value);
+    s_layer.Set(LANDSCAPE_LAYOUT_OPTION, LANDSCAPE_LAYOUT_OPTION.default_value);
+    s_layer.Set(LARGE_SCREEN_PROPORTION, LARGE_SCREEN_PROPORTION.default_value);
+    s_layer.Set(LANDSCAPE_LARGE_SCREEN_PROPORTION, LANDSCAPE_LARGE_SCREEN_PROPORTION.default_value);
     s_layer.Set(POST_PROCESSING_SHADER, POST_PROCESSING_SHADER.default_value);
     s_layer.Set(REMOTE_SHADER_HOST, REMOTE_SHADER_HOST.default_value);
 
@@ -45,12 +48,12 @@ void SaveDefault() {
     s_layer.Set(DSP_LLE_MULTITHREAD, DSP_LLE_MULTITHREAD.default_value);
     s_layer.Set(AUDIO_STRETCHING, AUDIO_STRETCHING.default_value);
     s_layer.Set(AUDIO_VOLUME, AUDIO_VOLUME.default_value);
-    s_layer.Set(AUDIO_ENGINE, AUDIO_ENGINE.default_value);
-    s_layer.Set(AUDIO_DEVICE, AUDIO_DEVICE.default_value);
+    s_layer.Set(AUDIO_OUTPUT_TYPE, AUDIO_OUTPUT_TYPE.default_value);
+    s_layer.Set(AUDIO_OUTPUT_DEVICE, AUDIO_OUTPUT_DEVICE.default_value);
 
     // mic
-    s_layer.Set(MIC_INPUT_TYPE, MIC_INPUT_TYPE.default_value);
-    s_layer.Set(MIC_INPUT_DEVICE, MIC_INPUT_DEVICE.default_value);
+    s_layer.Set(AUDIO_INPUT_TYPE, AUDIO_INPUT_TYPE.default_value);
+    s_layer.Set(AUDIO_INPUT_DEVICE, AUDIO_INPUT_DEVICE.default_value);
 
     // camera
     s_layer.Set(CAMERA_DEVICE, CAMERA_DEVICE.default_value);
@@ -62,7 +65,8 @@ void SaveDefault() {
     s_layer.Set(LLE_MODULES, LLE_MODULES.default_value);
 
     // custom layout
-    s_layer.Set(USE_CUSTOM_LAYOUT, USE_CUSTOM_LAYOUT.default_value);
+    s_layer.Set(PORTRAIT_CUSTOM_LAYOUT, PORTRAIT_CUSTOM_LAYOUT.default_value);
+    s_layer.Set(LANDSCAPE_CUSTOM_LAYOUT, LANDSCAPE_CUSTOM_LAYOUT.default_value);
     // portrait
     s_layer.Set(PORTRAIT_TOP_LEFT, PORTRAIT_TOP_LEFT.default_value);
     s_layer.Set(PORTRAIT_TOP_TOP, PORTRAIT_TOP_TOP.default_value);

@@ -21,13 +21,21 @@ namespace ConfigLoaders {
 
 static const char* CONFIG_FILE = "config-mmj.ini";
 
+static std::string GetConfigFilePath() {
+    std::string config_dir = FileUtil::GetUserPath(FileUtil::UserPath::ConfigDir);
+    if (!config_dir.empty() && config_dir.back() != '/') {
+        config_dir.push_back('/');
+    }
+    return config_dir + CONFIG_FILE;
+}
+
 // INI layer configuration loader
 class BaseConfigLayerLoader final : public Config::ConfigLayerLoader {
 public:
     BaseConfigLayerLoader() : ConfigLayerLoader() {}
     void Load(Config::Layer* layer) override {
         IniFile ini;
-        if (!ini.Load(FileUtil::GetUserPath(FileUtil::UserPath::ConfigDir) + CONFIG_FILE))
+        if (!ini.Load(GetConfigFilePath()))
             return;
 
         const std::list<IniFile::Section>& system_sections = ini.GetSections();
@@ -42,7 +50,7 @@ public:
 
     void Save(Config::Layer* layer) override {
         IniFile ini;
-        std::string ini_path = FileUtil::GetUserPath(FileUtil::UserPath::ConfigDir) + CONFIG_FILE;
+        std::string ini_path = GetConfigFilePath();
         ini.Load(ini_path);
         for (const auto& config : layer->GetLayerMap()) {
             const auto& location = config.first;

@@ -19,6 +19,78 @@ Need help? Check out our [asking for help](https://citra-emu.org/help/reference/
 
 For development discussion, please join us on our [Discord server](https://citra-emu.org/discord/) or at #citra-dev on freenode.
 
+### Maintained Fork Status
+
+This checkout is the maintained local fork with Android `arm64-v8a` as the primary target.
+
+Current verified state:
+- Android debug APK builds from CLI, installs, and runs on a physical Galaxy S24+.
+- Submodules are now either normalized to clean pinned commits or intentionally pinned compatibility snapshots.
+- Remaining intentional non-clean upstream states:
+  - `externals/boost` at `4cc38a77d7c5bfd0c73e3ceef8ef54e64387a2a2`
+  - `externals/nihstro` at `c9af0af155514b5c12a6f2d9e2b10fb98ec66750`
+
+For repo-operational history and decisions, see:
+- `.codex/docs/HANDOVER.md`
+- `.codex/docs/INSIGHTS.md`
+- `.codex/docs/DECISIONS.md`
+- `EXTERNALS_PRESERVATION.md`
+
+### Android Bootstrap
+
+This is the currently verified Windows CLI path for a fresh checkout.
+
+Prerequisites:
+- JDK on `PATH` or `JAVA_HOME` set to a valid JDK
+- Android SDK installed and reachable through `src/android/local.properties`
+- Android SDK components matching the tracked Gradle config:
+  - NDK `29.0.14206865`
+  - CMake `3.31.6`
+  - platform-tools / `adb`
+- Git submodules initialized
+
+Setup:
+```powershell
+git submodule update --init --recursive
+```
+
+Machine-local Android SDK path:
+- Create or update `src/android/local.properties`
+- Example:
+
+```properties
+sdk.dir=C:\\Users\\<you>\\AppData\\Local\\Android\\Sdk
+```
+
+Verified build command:
+```powershell
+cd src/android
+cmd /c gradlew.bat :app:assembleDebug --stacktrace
+```
+
+Verified clean build command:
+```powershell
+cd src/android
+cmd /c gradlew.bat clean :app:assembleDebug --stacktrace
+```
+
+Built APK:
+```text
+src/android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+Optional helper tasks from the repo root:
+```powershell
+task build-debug-apk
+task build-debug-apk-clean
+task install-debug-apk
+task deploy-debug-apk
+```
+
+Notes:
+- Android builds currently use `ENABLE_WEB_SERVICE=0`, so `externals/libressl` is not on the active runtime path.
+- Do not rewind `externals/boost` or `externals/nihstro` casually; both are currently required for Android toolchain compatibility.
+
 ### Development
 
 Most of the development happens on GitHub. It's also where [our central repository](https://github.com/citra-emu/citra) is hosted.

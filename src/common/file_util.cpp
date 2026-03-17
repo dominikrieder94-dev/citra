@@ -401,27 +401,27 @@ void SetUserPath(const std::string& path) {
     if (!path.empty() && CreateFullPath(path)) {
         LOG_INFO(Common_Filesystem, "Using {} as the user directory", path);
         user_path = path;
-        g_paths.emplace(UserPath::ConfigDir, user_path + CONFIG_DIR DIR_SEP);
-        g_paths.emplace(UserPath::CacheDir, user_path + CACHE_DIR DIR_SEP);
+        g_paths[UserPath::ConfigDir] = user_path + CONFIG_DIR DIR_SEP;
+        g_paths[UserPath::CacheDir] = user_path + CACHE_DIR DIR_SEP;
     } else {
         if (FileUtil::Exists(ROOT_DIR DIR_SEP SDCARD_DIR)) {
             user_path = ROOT_DIR DIR_SEP SDCARD_DIR DIR_SEP EMU_DATA_DIR DIR_SEP;
-            g_paths.emplace(UserPath::ConfigDir, user_path + CONFIG_DIR DIR_SEP);
-            g_paths.emplace(UserPath::CacheDir, user_path + CACHE_DIR DIR_SEP);
+            g_paths[UserPath::ConfigDir] = user_path + CONFIG_DIR DIR_SEP;
+            g_paths[UserPath::CacheDir] = user_path + CACHE_DIR DIR_SEP;
         }
     }
-    g_paths.emplace(UserPath::SDMCDir, user_path + SDMC_DIR DIR_SEP);
-    g_paths.emplace(UserPath::NANDDir, user_path + NAND_DIR DIR_SEP);
-    g_paths.emplace(UserPath::SysDataDir, user_path + SYSDATA_DIR DIR_SEP);
+    g_paths[UserPath::SDMCDir] = user_path + SDMC_DIR DIR_SEP;
+    g_paths[UserPath::NANDDir] = user_path + NAND_DIR DIR_SEP;
+    g_paths[UserPath::SysDataDir] = user_path + SYSDATA_DIR DIR_SEP;
     // TODO: Put the logs in a better location for each OS
-    g_paths.emplace(UserPath::LogDir, user_path + LOG_DIR DIR_SEP);
-    g_paths.emplace(UserPath::CheatsDir, user_path + CHEATS_DIR DIR_SEP);
-    g_paths.emplace(UserPath::DLLDir, user_path + DLL_DIR DIR_SEP);
-    g_paths.emplace(UserPath::ShaderDir, user_path + SHADER_DIR DIR_SEP);
-    g_paths.emplace(UserPath::DumpDir, user_path + DUMP_DIR DIR_SEP);
-    g_paths.emplace(UserPath::LoadDir, user_path + LOAD_DIR DIR_SEP);
-    g_paths.emplace(UserPath::StatesDir, user_path + STATES_DIR DIR_SEP);
-    g_paths.emplace(UserPath::AmiiboDir, user_path + AMIIBO_DIR DIR_SEP);
+    g_paths[UserPath::LogDir] = user_path + LOG_DIR DIR_SEP;
+    g_paths[UserPath::CheatsDir] = user_path + CHEATS_DIR DIR_SEP;
+    g_paths[UserPath::DLLDir] = user_path + DLL_DIR DIR_SEP;
+    g_paths[UserPath::ShaderDir] = user_path + SHADER_DIR DIR_SEP;
+    g_paths[UserPath::DumpDir] = user_path + DUMP_DIR DIR_SEP;
+    g_paths[UserPath::LoadDir] = user_path + LOAD_DIR DIR_SEP;
+    g_paths[UserPath::StatesDir] = user_path + STATES_DIR DIR_SEP;
+    g_paths[UserPath::AmiiboDir] = user_path + AMIIBO_DIR DIR_SEP;
 }
 
 const std::string& GetUserPath(UserPath path) {
