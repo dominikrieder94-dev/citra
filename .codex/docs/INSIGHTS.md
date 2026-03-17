@@ -139,6 +139,7 @@
 - A clean baseline exists at fork commit `526227eebe1efff3fb14dbf494b9c5b44c2e9c1f`. Restoring dynarmic's own submodules on top of that baseline and then re-applying only the small real patch set yields a working Android build.
 - The preserved working dynarmic state is now local commit `384d240134f74ebaed6bd748d9662069dcaf3a68`, which keeps the CMake/build tweaks, formatter compatibility adjustments, and register-allocation changes while leaving dynarmic's nested dependency model intact.
 - `cmd /c gradlew.bat :app:assembleDebug --stacktrace` still succeeds after this split, so the accidental vendoring was not required for the current Android `arm64-v8a` build.
+- Runtime is now also confirmed on the physical device after deployment. The normalized dynarmic state is no longer just a build-clean hypothesis.
 - For higher-risk externals, the requested validation flow is now explicit: rebuild, deploy to `R3CXB0SJ5GL`, then wait for device confirmation before treating the cleanup as safe.
 
 ## Practical debugging workflow

@@ -282,3 +282,12 @@
   - `.codex/docs/TASKS.md`
   - `EXTERNALS_PRESERVATION.md`
   - `externals/dynarmic`
+
+## 2026-03-17 (confirm dynarmic normalization on device)
+- Intent: Close the high-risk `externals/dynarmic` cleanup loop by confirming the rebuilt APK still behaves correctly on the physical Android device after installation.
+- Outcome: Device verification succeeded. The user confirmed that the APK built from superproject commit `3b635fa1c` with normalized `externals/dynarmic` still works correctly on `R3CXB0SJ5GL`.
+- Files touched:
+  - `.codex/docs/HANDOVER.md`
+  - `.codex/docs/INSIGHTS.md`
+  - `.codex/docs/PROGRESS.md`
+  - `.codex/docs/TASKS.md`
