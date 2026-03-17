@@ -312,3 +312,14 @@
   - `.codex/docs/INSIGHTS.md`
   - `.codex/docs/PROGRESS.md`
   - `.codex/docs/TASKS.md`
+
+## 2026-03-17 (normalize libressl submodule)
+- Intent: Replace the preserved local `externals/libressl` tree replacement with a clean upstream checkout, then rebuild and deploy because this is another higher-risk cleanup even though LibreSSL is outside the active Android runtime path.
+- Outcome: Rewound `externals/libressl` from preserved local commit `ab327f02cd682101dd3af930b99e6ca40602e1ec` to clean fork head `88b8e41b71099fabc57813bc06d8bc1aba050a19`. Android `cmd /c gradlew.bat :app:assembleDebug --stacktrace` still succeeds with `ENABLE_WEB_SERVICE=0`, and the rebuilt debug APK installed successfully to `R3CXB0SJ5GL`. Device confirmation is still pending.
+- Files touched:
+  - `.codex/docs/HANDOVER.md`
+  - `.codex/docs/INSIGHTS.md`
+  - `.codex/docs/PROGRESS.md`
+  - `.codex/docs/TASKS.md`
+  - `EXTERNALS_PRESERVATION.md`
+  - `externals/libressl`

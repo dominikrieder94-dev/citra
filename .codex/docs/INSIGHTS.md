@@ -153,6 +153,12 @@
 - With those superproject fixes in place, Android `:app:assembleDebug` succeeds again and the normalized APK installs to `R3CXB0SJ5GL`.
 - Runtime is now also confirmed on the physical device after deployment. The normalized soundtouch state is no longer just build-clean.
 
+## 2026-03-17 libressl normalization
+- The preserved local `externals/libressl` commit `ab327f02cd682101dd3af930b99e6ca40602e1ec` is a large local tree replacement on top of clean fork head `88b8e41b71099fabc57813bc06d8bc1aba050a19`, not a small patch queue worth keeping as active state.
+- Because Android builds this repo with `ENABLE_WEB_SERVICE=0`, LibreSSL is outside the active Android runtime path. That makes it a good candidate for direct rewind to a clean fork commit.
+- Rewinding `externals/libressl` to clean fork head `88b8e41b71099fabc57813bc06d8bc1aba050a19` leaves Android `:app:assembleDebug` passing, which is the only required validation for the current Android-first recovery goal.
+- Practical consequence: `libressl` no longer needs to stay on a preserved local snapshot for Android reproducibility. The preserved local tree replacement can remain only as recoverable history.
+
 ## Practical debugging workflow
 - The recovered workflow is:
   1. build debug APK
