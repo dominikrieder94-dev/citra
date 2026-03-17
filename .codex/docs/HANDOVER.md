@@ -15,13 +15,12 @@
   - `externals/inih/inih` is now repaired to clean historical commit `2023872dfffb38b6a98f2c45a0eb25652aaea91f`. The previous superproject gitlink pointed at a broken empty-tree local commit `319893ccbe95662983177b589a6cb76f90cc8c65`.
   - `externals/soundtouch` is now normalized to clean upstream commit `9ef8458d8561d9471dd20e9619e3be4cfe564796`. The required behavior was moved into the superproject instead of kept as a local fork: `externals/CMakeLists.txt` now forces `SOUNDSTRETCH=OFF` and propagates `SOUNDTOUCH_INTEGER_SAMPLES` on the `SoundTouch` target. Android `:app:assembleDebug` passes again, the rebuilt APK installed successfully to `R3CXB0SJ5GL`, and device runtime is confirmed good.
   - `externals/libressl` is now normalized to clean fork head `88b8e41b71099fabc57813bc06d8bc1aba050a19`. Android `:app:assembleDebug` still passes because the Android build keeps `ENABLE_WEB_SERVICE=0`, the rebuilt APK installed successfully to `R3CXB0SJ5GL`, and device runtime is confirmed good.
+  - `externals/boost` is not a rewind candidate under the current Android toolchain. Reverting it from preserved snapshot `4cc38a77d7c5bfd0c73e3ceef8ef54e64387a2a2` to old clean commit `36603a1e665e849d29b1735a12c0a51284a10dd0` breaks Dynarmic compilation because old Boost still uses `std::unary_function` in `boost/container_hash/hash.hpp`, which current Android libc++ no longer provides. Restoring `4cc38a77d7c5bfd0c73e3ceef8ef54e64387a2a2` returns Android buildability.
   - `externals/nihstro` is not a safe rewind candidate. Reverting it to the old gitlink `fd69de1a1b960ec296cc67d32257b0f9e2d89ac6` breaks Android compilation because current libc++ rejects the old `std::make_unsigned` specializations in `include/nihstro/shader_bytecode.h`. The preserved snapshot `c9af0af155514b5c12a6f2d9e2b10fb98ec66750` was restored and the Android build passes again.
   - `externals/dynarmic` is now normalized to local preserved commit `384d240134f74ebaed6bd748d9662069dcaf3a68` on top of clean fork commit `526227eebe1efff3fb14dbf494b9c5b44c2e9c1f`. Dynarmic's own nested submodules are restored, the accidental vendored `externals/*` trees are gone, the small real local patch set remains, Android `:app:assembleDebug` passes, the rebuilt APK installed successfully to `R3CXB0SJ5GL`, and device runtime is confirmed good.
-  - Heavy manual-review candidates:
-    - `externals/boost`: broad local Boost import centered on Asio and Align
 - First next steps:
   1. Treat `externals/nihstro` as a required local compatibility patch until its changes are separated, documented, or upstreamed.
-  2. Decide a target strategy for the remaining heavy drift in `externals/boost`.
+  2. Treat `externals/boost` as an intentional pinned compatibility snapshot until a clean newer Boost replacement strategy exists.
   3. Continue the reproducibility cleanup by documenting which preserved externals are now confirmed-safe normalized states versus intentional local patches.
 
 ## 2026-03-16

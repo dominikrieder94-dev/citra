@@ -160,6 +160,12 @@
 - Practical consequence: `libressl` no longer needs to stay on a preserved local snapshot for Android reproducibility. The preserved local tree replacement can remain only as recoverable history.
 - Runtime is now also confirmed on the physical device after deployment. The normalized libressl state is no longer just build-clean.
 
+## 2026-03-17 boost classification
+- `externals/boost` is already clean in Git terms because the superproject is pinned to the preserved snapshot `4cc38a77d7c5bfd0c73e3ceef8ef54e64387a2a2`.
+- That preserved snapshot is still required for the current Android toolchain. Rewinding to the old clean gitlink `36603a1e665e849d29b1735a12c0a51284a10dd0` breaks Dynarmic compilation under current Android libc++.
+- The concrete failure is in old Boost `boost/container_hash/hash.hpp`, which still derives from `std::unary_function`; current libc++ has removed that symbol, so old Boost can no longer compile cleanly in this environment.
+- Practical consequence: Boost is not a direct normalization candidate. Treat `4cc38a77d7c5bfd0c73e3ceef8ef54e64387a2a2` as an intentional pinned compatibility snapshot until the broad import is decomposed, replaced with a clean newer upstream Boost snapshot, or otherwise minimized.
+
 ## Practical debugging workflow
 - The recovered workflow is:
   1. build debug APK

@@ -332,3 +332,13 @@
   - `.codex/docs/INSIGHTS.md`
   - `.codex/docs/PROGRESS.md`
   - `.codex/docs/TASKS.md`
+
+## 2026-03-17 (classify boost compatibility snapshot)
+- Intent: Test whether `externals/boost` can be normalized by rewinding it from the preserved local snapshot to the older clean gitlink, then rebuild Android to see whether the broad Boost import is actually required.
+- Outcome: Rewinding `externals/boost` from preserved snapshot `4cc38a77d7c5bfd0c73e3ceef8ef54e64387a2a2` to old clean commit `36603a1e665e849d29b1735a12c0a51284a10dd0` breaks Android build inside Dynarmic because old Boost `boost/container_hash/hash.hpp` still derives from `std::unary_function`, which current Android libc++ no longer provides. Restoring `4cc38a77d7c5bfd0c73e3ceef8ef54e64387a2a2` returns `cmd /c gradlew.bat :app:assembleDebug --stacktrace` to a passing state. Boost therefore remains an intentional pinned compatibility snapshot for now, not a rewind candidate.
+- Files touched:
+  - `.codex/docs/HANDOVER.md`
+  - `.codex/docs/INSIGHTS.md`
+  - `.codex/docs/PROGRESS.md`
+  - `.codex/docs/TASKS.md`
+  - `EXTERNALS_PRESERVATION.md`
