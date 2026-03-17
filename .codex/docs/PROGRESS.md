@@ -323,3 +323,12 @@
   - `.codex/docs/TASKS.md`
   - `EXTERNALS_PRESERVATION.md`
   - `externals/libressl`
+
+## 2026-03-17 (confirm libressl normalization on device)
+- Intent: Close the higher-risk `externals/libressl` cleanup loop by confirming the rebuilt APK still behaves correctly on the physical Android device after installation.
+- Outcome: Device verification succeeded. The user confirmed that the APK built from superproject commit `c8dac8377` with normalized `externals/libressl` still works correctly on `R3CXB0SJ5GL`.
+- Files touched:
+  - `.codex/docs/HANDOVER.md`
+  - `.codex/docs/INSIGHTS.md`
+  - `.codex/docs/PROGRESS.md`
+  - `.codex/docs/TASKS.md`
