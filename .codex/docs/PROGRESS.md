@@ -372,3 +372,19 @@
   - `.codex/docs/TASKS.md`
   - `EXTERNALS_PRESERVATION.md`
   - `externals/nihstro`
+
+## 2026-03-17 (publish active submodule commits to owner forks)
+- Intent: Push the currently validated local-only submodule commits for `externals/boost`, `externals/dynarmic`, and `externals/nihstro` to the owner's GitHub forks on stable branch names so the main repo can become fresh-clone reproducible.
+- Outcome: Added owner remote `dominik` to `externals/boost`, `externals/dynarmic`, and `externals/nihstro`, created branch `dominik/android-working` in each submodule at the currently validated commit, and pushed those branches successfully:
+  - `externals/boost` -> `https://github.com/dominikrieder94-dev/ext-boost`, branch `dominik/android-working`, commit `4cc38a77d7c5bfd0c73e3ceef8ef54e64387a2a2`
+  - `externals/dynarmic` -> `https://github.com/dominikrieder94-dev/dynarmic`, branch `dominik/android-working`, commit `384d240134f74ebaed6bd748d9662069dcaf3a68`
+  - `externals/nihstro` -> `https://github.com/dominikrieder94-dev/nihstro`, branch `dominik/android-working`, commit `b2291a63a6bdbb095b68dcffde6be3c73887cf17`
+- Files touched:
+  - `.codex/docs/PROGRESS.md`
+
+## 2026-03-17 (resolve boost fork PR conflict)
+- Intent: Merge the owner's current Boost fork `master` into `dominik/android-working`, resolve any conflicts while preserving the validated Android-compatible Boost state, and push the updated branch so the PR can merge cleanly.
+- Outcome: A direct cherry-pick of `4cc38a77d7c5bfd0c73e3ceef8ef54e64387a2a2` onto updated Boost `master` and a content merge with `-X ours` both produced broken hybrid Asio trees and Android build failures. The safe resolution was an `ours` strategy merge in `externals/boost`, creating merge commit `e520e425060298281713fcb0e0fc9edd46cafd3b` on `dominik/android-working` with parent `f9b15f6` from fork `master` while keeping the exact validated Android-compatible tree from `4cc38a77d7c5bfd0c73e3ceef8ef54e64387a2a2`. After the merge, `cmd /c gradlew.bat :app:assembleDebug --stacktrace` still passed, and the updated branch was pushed successfully to `https://github.com/dominikrieder94-dev/ext-boost`.
+- Files touched:
+  - `.codex/docs/PROGRESS.md`
+  - `externals/boost`
