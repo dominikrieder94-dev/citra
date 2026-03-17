@@ -123,6 +123,12 @@
 - `externals/xbyak` has now been normalized back to clean upstream commit `1de435ed04c8e74775804da944d176baf0ce56e2`. The removed drift was limited to shell-script and documentation line-ending churn and is irrelevant for Android `arm64-v8a`.
 - These three submodule cleanups are safe to batch because none of them changed functional source content on the active Android runtime path.
 
+## 2026-03-17 fmt and nihstro normalization boundary
+- `externals/fmt` can be normalized safely. Rewinding it to `4b8f8fac96a7819f28f4be523ca10a2d5d8aaaf2` still allows `cmd /c gradlew.bat :app:assembleDebug --stacktrace` to succeed on Android.
+- The local `fmt` delta was therefore not required for the current Android build. It only removed user-defined-literal compile definitions and helper-script mode churn.
+- `externals/nihstro` cannot be normalized by simple rewind. Reverting it to `fd69de1a1b960ec296cc67d32257b0f9e2d89ac6` fails Android compilation in `include/nihstro/shader_bytecode.h` because the older code specializes `std::make_unsigned`, which current libc++ explicitly forbids.
+- The preserved `nihstro` patches are not cosmetic. At minimum, the `BitFieldStorageType` refactor and the extra `return 0;` in `SourceRegister::GetIndex()` are part of the current working Android toolchain compatibility story.
+
 ## Practical debugging workflow
 - The recovered workflow is:
   1. build debug APK

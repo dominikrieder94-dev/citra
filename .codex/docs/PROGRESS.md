@@ -232,3 +232,25 @@
   - `externals/enet`
   - `externals/teakra`
   - `externals/xbyak`
+
+## 2026-03-17 (test fmt normalization)
+- Intent: Test whether `externals/fmt` can also be normalized safely by rewinding it to the old clean upstream commit and validating the Android debug build afterward.
+- Outcome: Rewound `externals/fmt` to clean upstream commit `4b8f8fac96a7819f28f4be523ca10a2d5d8aaaf2` and verified that `cmd /c gradlew.bat :app:assembleDebug --stacktrace` still succeeds. The removed local delta was limited to two `FMT_USE_USER_DEFINED_LITERALS=0` compile-definition lines plus helper-script mode churn, and the current Android build tolerates their removal.
+- Files touched:
+  - `.codex/docs/HANDOVER.md`
+  - `.codex/docs/INSIGHTS.md`
+  - `.codex/docs/PROGRESS.md`
+  - `.codex/docs/TASKS.md`
+  - `EXTERNALS_PRESERVATION.md`
+  - `externals/fmt`
+
+## 2026-03-17 (test nihstro normalization)
+- Intent: Test whether `externals/nihstro` can also be normalized safely by rewinding it to the old clean upstream commit and validating the Android debug build afterward.
+- Outcome: Rewinding `externals/nihstro` to `fd69de1a1b960ec296cc67d32257b0f9e2d89ac6` breaks the Android `arm64-v8a` build under the current NDK/libc++ toolchain. The old code specializes `std::make_unsigned` for shader register enums in `include/nihstro/shader_bytecode.h`, which now fails with `-Winvalid-specialization`. Restoring the preserved snapshot `c9af0af155514b5c12a6f2d9e2b10fb98ec66750` returns the Android build to a passing state, so `nihstro` is no longer an "easy" normalization candidate.
+- Files touched:
+  - `.codex/docs/HANDOVER.md`
+  - `.codex/docs/INSIGHTS.md`
+  - `.codex/docs/PROGRESS.md`
+  - `.codex/docs/TASKS.md`
+  - `EXTERNALS_PRESERVATION.md`
+  - `externals/nihstro`
