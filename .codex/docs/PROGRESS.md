@@ -291,3 +291,15 @@
   - `.codex/docs/INSIGHTS.md`
   - `.codex/docs/PROGRESS.md`
   - `.codex/docs/TASKS.md`
+
+## 2026-03-17 (normalize soundtouch via superproject integration)
+- Intent: Replace the preserved local `externals/soundtouch` tree replacement with a clean upstream checkout plus the minimal superproject integration needed for the Android build, then rebuild and deploy because this is another higher-risk cleanup.
+- Outcome: Rewound `externals/soundtouch` from preserved local commit `26ea8b97eeb87427e5973cda012bd9074536f576` to clean upstream commit `9ef8458d8561d9471dd20e9619e3be4cfe564796`. The actual required behavior now lives in the superproject: `externals/CMakeLists.txt` forces `SOUNDSTRETCH=OFF` before `add_subdirectory(soundtouch)` and propagates `SOUNDTOUCH_INTEGER_SAMPLES` as an interface definition on the `SoundTouch` target. With those integration fixes in place, `cmd /c gradlew.bat :app:assembleDebug --stacktrace` succeeds again and the rebuilt APK installed successfully to `R3CXB0SJ5GL`. Device confirmation is still pending.
+- Files touched:
+  - `.codex/docs/HANDOVER.md`
+  - `.codex/docs/INSIGHTS.md`
+  - `.codex/docs/PROGRESS.md`
+  - `.codex/docs/TASKS.md`
+  - `EXTERNALS_PRESERVATION.md`
+  - `externals/CMakeLists.txt`
+  - `externals/soundtouch`

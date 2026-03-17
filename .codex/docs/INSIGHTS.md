@@ -142,6 +142,16 @@
 - Runtime is now also confirmed on the physical device after deployment. The normalized dynarmic state is no longer just a build-clean hypothesis.
 - For higher-risk externals, the requested validation flow is now explicit: rebuild, deploy to `R3CXB0SJ5GL`, then wait for device confirmation before treating the cleanup as safe.
 
+## 2026-03-17 soundtouch normalization
+- The preserved local `externals/soundtouch` commit `26ea8b97eeb87427e5973cda012bd9074536f576` was not a required code fork. It was mostly a tree replacement that deleted packaging assets, the legacy Android example, and `SoundStretch` sources.
+- A straight rewind to clean upstream `9ef8458d8561d9471dd20e9619e3be4cfe564796` fails the Android configure step for two integration reasons:
+  - the superproject was still adding `target_include_directories(SoundTouch INTERFACE ./soundtouch/include)`, which conflicts with upstream install/export rules
+  - the emulator relies on the integer-sample ABI, but upstream keeps `SOUNDTOUCH_INTEGER_SAMPLES` as a private target definition
+- The clean fix is to keep `soundtouch` on upstream `9ef8458d8561d9471dd20e9619e3be4cfe564796` and move the real integration choices into `externals/CMakeLists.txt`:
+  - force `SOUNDSTRETCH=OFF` because the emulator does not use the CLI utility and the preserved local tree had deleted its sources anyway
+  - propagate `SOUNDTOUCH_INTEGER_SAMPLES` as an interface definition on the `SoundTouch` target
+- With those superproject fixes in place, Android `:app:assembleDebug` succeeds again and the normalized APK installs to `R3CXB0SJ5GL`.
+
 ## Practical debugging workflow
 - The recovered workflow is:
   1. build debug APK

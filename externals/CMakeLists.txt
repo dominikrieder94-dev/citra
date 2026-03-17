@@ -63,9 +63,10 @@ add_subdirectory(minilzo)
 
 # SoundTouch
 set(INTEGER_SAMPLES ON CACHE BOOL "" FORCE)
+set(SOUNDSTRETCH OFF CACHE BOOL "" FORCE)
 add_subdirectory(soundtouch)
-# The SoundTouch target doesn't export the necessary include paths as properties by default
-target_include_directories(SoundTouch INTERFACE ./soundtouch/include)
+# Keep emulator consumers on the same integer-sample ABI as the library target.
+target_compile_definitions(SoundTouch INTERFACE SOUNDTOUCH_INTEGER_SAMPLES)
 
 # Teakra
 add_subdirectory(teakra)
