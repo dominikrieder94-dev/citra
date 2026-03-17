@@ -271,3 +271,14 @@
   - `.codex/docs/TASKS.md`
   - `EXTERNALS_PRESERVATION.md`
   - `externals/inih/inih`
+
+## 2026-03-17 (separate dynarmic vendoring)
+- Intent: Split the preserved `externals/dynarmic` snapshot into a clean nested-submodule baseline plus the small real local patch set, then rebuild and deploy because this is a higher-risk cleanup.
+- Outcome: Rebased `externals/dynarmic` onto clean fork commit `526227eebe1efff3fb14dbf494b9c5b44c2e9c1f`, restored dynarmic's own nested submodules with `git submodule update --init --recursive --force`, re-applied only the small real local patch set, and preserved that cleaned state as local dynarmic commit `384d240134f74ebaed6bd748d9662069dcaf3a68`. `cmd /c gradlew.bat :app:assembleDebug --stacktrace` still succeeds, and the rebuilt debug APK installed successfully to device `R3CXB0SJ5GL`.
+- Files touched:
+  - `.codex/docs/HANDOVER.md`
+  - `.codex/docs/INSIGHTS.md`
+  - `.codex/docs/PROGRESS.md`
+  - `.codex/docs/TASKS.md`
+  - `EXTERNALS_PRESERVATION.md`
+  - `externals/dynarmic`

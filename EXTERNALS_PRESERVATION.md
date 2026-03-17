@@ -87,6 +87,7 @@ Notes:
 - `externals/boost` is a broad local import centered on Asio and Align, not a small patch stack.
 - `externals/soundtouch` and `externals/libressl` are large local tree replacements on top of newer fork heads.
 - `externals/libyuv` has already been normalized back to clean upstream commit `5b3351bd07e83f9f9a4cb6629561331ecdb7c546`; the preserved local snapshot remains recoverable in nested history as `0650e25412d6c47724bedac775835d661603d0a8`.
+- `externals/dynarmic` has now been normalized to local preserved commit `384d240134f74ebaed6bd748d9662069dcaf3a68` on top of clean fork commit `526227eebe1efff3fb14dbf494b9c5b44c2e9c1f`. The preserved mixed snapshot `86f70089e833eeb65956efdfcd2ff1dbb70ace9b` remains recoverable in nested history, but the active superproject state no longer vendors dynarmic's own nested `externals/*` trees.
 - `externals/fmt` has already been normalized back to clean upstream commit `4b8f8fac96a7819f28f4be523ca10a2d5d8aaaf2`; the preserved local snapshot remains recoverable in nested history as `c4c0c44c0210ddf7e40e2015359555405c3e7e53`.
 - `externals/enet` has already been normalized back to clean upstream commit `39a72ab1990014eb399cee9d538fd529df99c6a0`; the preserved local snapshot remains recoverable in nested history as `d60539d6bf267393d73506d0cc16e8e099ff3ccb`.
 - `externals/teakra` has already been normalized back to clean upstream commit `e6ea0eae656c022d7878ffabc4e016b3e6f0c536`; the preserved local snapshot remains recoverable in nested history as `be37f163e407f193dbe3394574554878da87285e`.
