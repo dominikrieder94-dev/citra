@@ -388,3 +388,10 @@
 - Files touched:
   - `.codex/docs/PROGRESS.md`
   - `externals/boost`
+
+## 2026-03-18 (post-boost-merge Android validation)
+- Intent: Rebuild the Android debug APK after the Boost fork conflict-resolution branch update, install it to the connected device, and confirm the maintained baseline still behaves correctly on hardware.
+- Outcome: Verified `R3CXB0SJ5GL` was connected with `adb devices`, rebuilt the current debug APK successfully via `task deploy-debug-apk`, and reinstalled `src/android/app/build/outputs/apk/debug/app-debug.apk` to the phone with `adb install -r`. The build passed without new blockers; remaining validation is the user-facing runtime check on device.
+- Files touched:
+  - `.codex/docs/PROGRESS.md`
+
