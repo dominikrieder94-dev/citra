@@ -355,3 +355,9 @@
   - `.gitignore`
   - `README.md`
   - `Taskfile.yml`
+
+## 2026-03-17 (deploy bootstrap-validated APK to device)
+- Intent: Push the current bootstrap-validated Android debug build to the connected Galaxy S24+ so the documented baseline is also present on the physical target.
+- Outcome: Verified `R3CXB0SJ5GL` was connected with `adb devices`, then installed `src/android/app/build/outputs/apk/debug/app-debug.apk` successfully via `task install-debug-apk`.
+- Files touched:
+  - `.codex/docs/PROGRESS.md`
