@@ -220,6 +220,10 @@ public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolde
         builder.setTitle(item.getNameId());
         builder.setView(view);
         builder.setPositiveButton(android.R.string.ok, this);
+        if (isStoragePathSetting(item.getKey())) {
+            builder.setNegativeButton(R.string.use_default, this);
+            builder.setNeutralButton(R.string.browse, this);
+        }
         mDialog = builder.show();
 
         EditText editor = view.findViewById(R.id.setting_editor);
@@ -330,14 +334,34 @@ public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolde
             closeDialog();
         } else if (mClickedItem instanceof EditorSetting) {
             EditorSetting editorSetting = (EditorSetting)mClickedItem;
+            if (isStoragePathSetting(editorSetting.getKey())) {
+                if (which == DialogInterface.BUTTON_NEUTRAL) {
+                    closeDialog();
+                    mActivity.openStoragePathPicker(editorSetting.getKey());
+                    mClickedItem = null;
+                    return;
+                }
+                if (which == DialogInterface.BUTTON_NEGATIVE) {
+                    mActivity.setSettingChanged();
+                    mActivity.setCustomStoragePath(editorSetting.getKey(), "");
+                    closeDialog();
+                    mClickedItem = null;
+                    return;
+                }
+            }
+
             EditText editor = mDialog.findViewById(R.id.setting_editor);
             String value = editor.getText().toString();
-            if (!editorSetting.getSelectedValue().equals(value))
+            final boolean changed = !editorSetting.getSelectedValue().equals(value);
+            if (changed)
                 mActivity.setSettingChanged();
 
             Setting setting = editorSetting.setSelectedValue(value);
             if (setting != null) {
                 mActivity.putSetting(setting);
+            }
+            if (isStoragePathSetting(editorSetting.getKey()) && changed) {
+                mActivity.setCustomStoragePath(editorSetting.getKey(), value);
             }
 
             closeDialog();
@@ -402,5 +426,9 @@ public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolde
         }
 
         return -1;
+    }
+
+    private boolean isStoragePathSetting(String key) {
+        return SettingsFile.KEY_STATES_PATH.equals(key) || SettingsFile.KEY_SDMC_PATH.equals(key);
     }
 }

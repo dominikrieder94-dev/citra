@@ -214,6 +214,20 @@ public final class SettingsFragment extends Fragment {
         Setting language = coreSection.getSetting(SettingsFile.KEY_SYSTEM_LANGUAGE);
         Setting font = coreSection.getSetting(SettingsFile.KEY_SHARED_FONT_TYPE);
         Setting theme = coreSection.getSetting(SettingsFile.KEY_THEME_PACKAGE);
+        Setting sdmcPath = coreSection.getSetting(SettingsFile.KEY_SDMC_PATH);
+        Setting statesPath = coreSection.getSetting(SettingsFile.KEY_STATES_PATH);
+        if (sdmcPath == null) {
+            sdmcPath = new org.citra.emu.settings.model.StringSetting(
+                SettingsFile.KEY_SDMC_PATH, Settings.SECTION_INI_CORE,
+                CitraDirectory.getSDMCDirectory());
+            coreSection.putSetting(sdmcPath);
+        }
+        if (statesPath == null) {
+            statesPath = new org.citra.emu.settings.model.StringSetting(
+                SettingsFile.KEY_STATES_PATH, Settings.SECTION_INI_CORE,
+                CitraDirectory.getStatesDirectory());
+            coreSection.putSetting(statesPath);
+        }
 
         if (mGameID.isEmpty()) {
             Setting useGameConfig = coreSection.getSetting(SettingsFile.KEY_USE_GAME_CONFIG);
@@ -243,6 +257,13 @@ public final class SettingsFragment extends Fragment {
         sl.add(new StringSingleChoiceSetting(
                 SettingsFile.KEY_THEME_PACKAGE, Settings.SECTION_INI_CORE,
                 R.string.setting_theme_package, 0, stringEntries, stringValues, "default", theme));
+
+        // storage
+        sl.add(new HeaderSetting(null, null, R.string.setting_header_storage, 0));
+        sl.add(new EditorSetting(SettingsFile.KEY_SDMC_PATH, Settings.SECTION_INI_CORE,
+                sdmcPath, R.string.setting_sdmc_path, R.string.setting_sdmc_path_description));
+        sl.add(new EditorSetting(SettingsFile.KEY_STATES_PATH, Settings.SECTION_INI_CORE,
+                statesPath, R.string.setting_states_path, R.string.setting_states_path_description));
 
         // audio
         sl.add(new HeaderSetting(null, null, R.string.setting_header_audio, 0));

@@ -2,8 +2,8 @@
 <resources>
 
     <!-- Title of the app -->
-    <string name="app_name">Citra</string>
-    <string name="app_name_version">Citra %1$s</string>
+    <string name="app_name">Citra BJJ</string>
+    <string name="app_name_version">Citra BJJ %1$s</string>
     <string name="host">app</string>
     <string name="scheme">citra</string>
 

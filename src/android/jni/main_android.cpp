@@ -407,6 +407,20 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_SetUserPath(JNIEnv* env,
     };
 }
 
+JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_SetStatesPath(JNIEnv* env, jclass obj,
+                                                                      jstring jPath) {
+    const std::string path = JniHelper::Unwrap(jPath);
+    FileUtil::SetUserPathOverride(FileUtil::UserPath::StatesDir, path);
+    CITRA_ANDROID_LOG("SetStatesPath: %s", path.c_str());
+}
+
+JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_SetSDMCPath(JNIEnv* env, jclass obj,
+                                                                    jstring jPath) {
+    const std::string path = JniHelper::Unwrap(jPath);
+    FileUtil::SetUserPathOverride(FileUtil::UserPath::SDMCDir, path);
+    CITRA_ANDROID_LOG("SetSDMCPath: %s", path.c_str());
+}
+
 JNIEXPORT jboolean JNICALL Java_org_citra_emu_NativeLibrary_IsRunning(JNIEnv* env, jclass obj) {
     return s_is_running;
 }

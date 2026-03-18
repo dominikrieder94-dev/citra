@@ -129,6 +129,7 @@ std::optional<std::string> GetCurrentDir();
 void CopyDir(const std::string& source_path, const std::string& dest_path);
 
 void SetUserPath(const std::string& path);
+void SetUserPathOverride(UserPath path, const std::string& value);
 
 // Returns a pointer to a string with a Citra data dir in the user's home
 // directory. To be used in "multi-user" mode (that is, installed).

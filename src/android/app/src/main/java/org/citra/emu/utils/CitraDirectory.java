@@ -20,13 +20,16 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Dictionary;
+import java.util.HashSet;
 import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -35,11 +38,21 @@ import org.citra.emu.NativeLibrary;
 import org.citra.emu.R;
 import org.citra.emu.iconcache.IconCache;
 import org.citra.emu.model.GameInfo;
+import org.citra.emu.settings.Settings;
+import org.citra.emu.settings.SettingsFile;
+import org.citra.emu.settings.model.Setting;
 import org.citra.emu.overlay.InputOverlay;
 
 public final class CitraDirectory {
+    private static final String SDMC_DIRECTORY_NAME = "Nintendo 3DS";
+    private static final int MAX_SDMC_SEARCH_DEPTH = 4;
+    private static final int MAX_SDMC_SEARCH_DIRECTORIES = 256;
+
     private static int sInitState;
     private static String mUserPath;
+    private static String mSDMCPath;
+    private static String mStatesPath;
+    private static boolean mUsingCustomSDMCPath;
     private static IconCache mIconCache;
     private static Bitmap mDefaultIcon;
     private static final Dictionary<String, String> mTitleDB = new Hashtable<>();
@@ -48,6 +61,26 @@ public final class CitraDirectory {
     private static final int INIT_UNKNOWN = 0;
     private static final int INIT_LEGACY = 1;
     private static final int INIT_SAF = 2;
+
+    private static final class SDMCDirectoryResolution {
+        public final String rootPath;
+        public final boolean existingLayout;
+
+        SDMCDirectoryResolution(String rootPath, boolean existingLayout) {
+            this.rootPath = rootPath;
+            this.existingLayout = existingLayout;
+        }
+    }
+
+    private static final class DirectorySearchNode {
+        public final File directory;
+        public final int depth;
+
+        DirectorySearchNode(File directory, int depth) {
+            this.directory = directory;
+            this.depth = depth;
+        }
+    }
 
 
     private static class InitTask extends AsyncTask<Context, Void, Void> {
@@ -92,6 +125,8 @@ public final class CitraDirectory {
                 loadTitleDB(context.getAssets());
                 NativeLibrary.ensureLoaded(context);
                 NativeLibrary.SetUserPath(mUserPath);
+                setSDMCDirectoryOverride(loadConfiguredSDMCDirectory());
+                setStatesDirectoryOverride(loadConfiguredStatesDirectory());
                 new InitTask().execute(context);
             }
         }
@@ -204,7 +239,11 @@ public final class CitraDirectory {
         copyAssetFolder("sysdata", sysdata, false, context);
         copyAssetFolder("config", config, false, context);
         copyAssetFolder("nand", nand, false, context);
-        copyAssetFolder("sdmc", sdmc, false, context);
+        if (!mUsingCustomSDMCPath) {
+            copyAssetFolder("sdmc", sdmc, false, context);
+        } else if (!sdmc.exists()) {
+            sdmc.mkdirs();
+        }
         if (theme.exists() || theme.mkdir()) {
             saveInputOverlay(context);
         }
@@ -212,6 +251,49 @@ public final class CitraDirectory {
 
     public static String getUserDirectory() {
         return mUserPath;
+    }
+
+    public static String getDefaultStatesDirectory() {
+        return getUserDirectory() + File.separator + "states";
+    }
+
+    public static String getDefaultSDMCDirectory() {
+        return getUserDirectory() + File.separator + "sdmc";
+    }
+
+    public static String getStatesDirectory() {
+        if (mStatesPath == null || mStatesPath.isEmpty()) {
+            return getDefaultStatesDirectory();
+        }
+        return mStatesPath;
+    }
+
+    public static void setStatesDirectoryOverride(String path) {
+        if (path == null || path.isEmpty()) {
+            mStatesPath = getDefaultStatesDirectory();
+            NativeLibrary.SetStatesPath("");
+            return;
+        }
+
+        mStatesPath = path;
+        NativeLibrary.SetStatesPath(path);
+    }
+
+    public static void setSDMCDirectoryOverride(String path) {
+        if (path == null || path.isEmpty()) {
+            mUsingCustomSDMCPath = false;
+            mSDMCPath = getDefaultSDMCDirectory();
+            NativeLibrary.SetSDMCPath("");
+            return;
+        }
+
+        SDMCDirectoryResolution resolution = resolveSDMCDirectory(path);
+        ensureSDMCDirectoryExists(resolution);
+        mUsingCustomSDMCPath = true;
+        mSDMCPath = resolution.rootPath;
+        NativeLibrary.SetSDMCPath(resolution.rootPath);
+        Log.i("citra", "Resolved SDMC directory: selected=" + path + ", root=" +
+                resolution.rootPath + ", existing=" + resolution.existingLayout);
     }
 
     public static File getCheatFile(String programId) {
@@ -260,11 +342,38 @@ public final class CitraDirectory {
     }
 
     public static String getSDMCDirectory() {
-        return getUserDirectory() + File.separator + "sdmc";
+        if (mSDMCPath == null || mSDMCPath.isEmpty()) {
+            return getDefaultSDMCDirectory();
+        }
+        return mSDMCPath;
     }
 
     public static String getNandDirectory() {
         return getUserDirectory() + File.separator + "nand";
+    }
+
+    private static String loadConfiguredStatesDirectory() {
+        return loadConfiguredCorePath(SettingsFile.KEY_STATES_PATH);
+    }
+
+    private static String loadConfiguredSDMCDirectory() {
+        return loadConfiguredCorePath(SettingsFile.KEY_SDMC_PATH);
+    }
+
+    private static String loadConfiguredCorePath(String key) {
+        HashMap<String, org.citra.emu.settings.model.SettingSection> sections =
+            SettingsFile.loadSettings("");
+        org.citra.emu.settings.model.SettingSection coreSection =
+            sections.get(Settings.SECTION_INI_CORE);
+        if (coreSection == null) {
+            return "";
+        }
+
+        Setting pathSetting = coreSection.getSetting(key);
+        if (pathSetting instanceof org.citra.emu.settings.model.StringSetting) {
+            return ((org.citra.emu.settings.model.StringSetting)pathSetting).getValue();
+        }
+        return "";
     }
 
     public static String getSystemTitleDirectory() {
@@ -400,6 +509,82 @@ public final class CitraDirectory {
         } catch (IOException e) {
             Log.e("citra", "copyAssetFolder error: " + assetFolder, e);
         }
+    }
+
+    private static SDMCDirectoryResolution resolveSDMCDirectory(String path) {
+        File selected = new File(path);
+        if (selected.getName().equalsIgnoreCase(SDMC_DIRECTORY_NAME)) {
+            File parent = selected.getParentFile();
+            if (parent != null) {
+                return new SDMCDirectoryResolution(parent.getAbsolutePath(), true);
+            }
+        }
+
+        File directNintendoDirectory = new File(selected, SDMC_DIRECTORY_NAME);
+        if (directNintendoDirectory.isDirectory()) {
+            return new SDMCDirectoryResolution(selected.getAbsolutePath(), true);
+        }
+
+        File nestedNintendoDirectory = findNintendo3DSDirectory(selected);
+        if (nestedNintendoDirectory != null && nestedNintendoDirectory.getParentFile() != null) {
+            return new SDMCDirectoryResolution(
+                nestedNintendoDirectory.getParentFile().getAbsolutePath(), true);
+        }
+
+        return new SDMCDirectoryResolution(selected.getAbsolutePath(), false);
+    }
+
+    private static void ensureSDMCDirectoryExists(SDMCDirectoryResolution resolution) {
+        File root = new File(resolution.rootPath);
+        if (!root.exists()) {
+            root.mkdirs();
+        }
+        if (!resolution.existingLayout) {
+            File nintendoDirectory = new File(root, SDMC_DIRECTORY_NAME);
+            if (!nintendoDirectory.exists()) {
+                nintendoDirectory.mkdirs();
+            }
+        }
+    }
+
+    private static File findNintendo3DSDirectory(File root) {
+        if (!root.isDirectory()) {
+            return null;
+        }
+
+        ArrayDeque<DirectorySearchNode> queue = new ArrayDeque<>();
+        Set<String> visited = new HashSet<>();
+        queue.add(new DirectorySearchNode(root, 0));
+        int visitedDirectories = 0;
+
+        while (!queue.isEmpty() && visitedDirectories < MAX_SDMC_SEARCH_DIRECTORIES) {
+            DirectorySearchNode node = queue.removeFirst();
+            File directory = node.directory;
+            String absolutePath = directory.getAbsolutePath();
+            if (!visited.add(absolutePath)) {
+                continue;
+            }
+            ++visitedDirectories;
+
+            File[] children = directory.listFiles();
+            if (children == null) {
+                continue;
+            }
+
+            for (File child : children) {
+                if (!child.isDirectory()) {
+                    continue;
+                }
+                if (child.getName().equalsIgnoreCase(SDMC_DIRECTORY_NAME)) {
+                    return child;
+                }
+                if (node.depth < MAX_SDMC_SEARCH_DEPTH) {
+                    queue.addLast(new DirectorySearchNode(child, node.depth + 1));
+                }
+            }
+        }
+
+        return null;
     }
 
     public static void copyFile(String from, String to) {

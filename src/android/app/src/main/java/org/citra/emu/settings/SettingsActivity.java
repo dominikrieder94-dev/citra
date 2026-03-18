@@ -14,23 +14,29 @@ import androidx.fragment.app.FragmentTransaction;
 
 import org.citra.emu.R;
 import org.citra.emu.settings.model.Setting;
+import org.citra.emu.settings.model.StringSetting;
 import org.citra.emu.utils.CitraDirectory;
+import org.citra.emu.utils.FileBrowserHelper;
 
 import java.io.File;
 
 public final class SettingsActivity extends AppCompatActivity {
     private static final String FRAGMENT_TAG = "settings";
+    private static final int REQUEST_CODE_STATES_DIRECTORY =
+        FileBrowserHelper.REQUEST_OPEN_DIRECTORY;
 
     private static final String KEY_SHOULD_SAVE = "should_save";
     private static final String KEY_MENU_TAG = "menu_tag";
     private static final String KEY_GAME_ID = "game_id";
     private static final String KEY_GAME_NAME = "game_name";
+    private static final String KEY_PENDING_DIRECTORY_SETTING = "pending_directory_setting";
 
     private Settings mSettings = new Settings();
     private boolean mShouldSave;
     private MenuTag mMenuTag;
     private String mGameId;
     private String mGameName;
+    private String mPendingDirectorySettingKey;
 
     public static void launch(Context context, MenuTag menuTag, String gameId, String gameName) {
         Intent settings = new Intent(context, SettingsActivity.class);
@@ -60,6 +66,8 @@ public final class SettingsActivity extends AppCompatActivity {
             mMenuTag = MenuTag.getMenuTag(menuTagStr);
             mGameId = savedInstanceState.getString(KEY_GAME_ID);
             mGameName = savedInstanceState.getString(KEY_GAME_NAME);
+            mPendingDirectorySettingKey =
+                savedInstanceState.getString(KEY_PENDING_DIRECTORY_SETTING);
         }
 
         if (!mGameName.isEmpty()) {
@@ -76,6 +84,7 @@ public final class SettingsActivity extends AppCompatActivity {
         outState.putString(KEY_MENU_TAG, mMenuTag.toString());
         outState.putString(KEY_GAME_ID, mGameId);
         outState.putString(KEY_GAME_NAME, mGameName);
+        outState.putString(KEY_PENDING_DIRECTORY_SETTING, mPendingDirectorySettingKey);
     }
 
     @Override
@@ -85,6 +94,19 @@ public final class SettingsActivity extends AppCompatActivity {
         if (mSettings.isEmpty()) {
             mSettings.loadSettings(mGameId);
             showSettingsFragment(mMenuTag, null, false, mGameId);
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == REQUEST_CODE_STATES_DIRECTORY && resultCode == RESULT_OK && data != null) {
+            String path = FileBrowserHelper.getSelectedDirectory(data);
+            if (path != null && mPendingDirectorySettingKey != null) {
+                setCustomStoragePath(mPendingDirectorySettingKey, path);
+            }
+            mPendingDirectorySettingKey = null;
         }
     }
 
@@ -115,6 +137,8 @@ public final class SettingsActivity extends AppCompatActivity {
             } catch (Exception e) {
                 // ignore
             }
+            CitraDirectory.setStatesDirectoryOverride("");
+            CitraDirectory.setSDMCDirectoryOverride("");
             mSettings.loadSettings(mGameId);
             // show settings
             SettingsFragment fragment = getSettingsFragment();
@@ -187,5 +211,27 @@ public final class SettingsActivity extends AppCompatActivity {
 
     public void setSettingChanged() {
         mShouldSave = true;
+    }
+
+    public void openStoragePathPicker(String settingKey) {
+        mPendingDirectorySettingKey = settingKey;
+        FileBrowserHelper.openDirectoryPicker(this);
+    }
+
+    public void setCustomStoragePath(String settingKey, String path) {
+        StringSetting setting =
+            new StringSetting(settingKey, Settings.SECTION_INI_CORE, path);
+        putSetting(setting);
+        if (SettingsFile.KEY_STATES_PATH.equals(settingKey)) {
+            CitraDirectory.setStatesDirectoryOverride(path);
+        } else if (SettingsFile.KEY_SDMC_PATH.equals(settingKey)) {
+            CitraDirectory.setSDMCDirectoryOverride(path);
+        }
+        mShouldSave = true;
+
+        SettingsFragment fragment = getSettingsFragment();
+        if (fragment != null) {
+            fragment.showSettingsList(mSettings);
+        }
     }
 }

@@ -393,23 +393,23 @@ void CopyDir(const std::string& source_path, const std::string& dest_path) {
 
 namespace {
 std::unordered_map<UserPath, std::string> g_paths;
+std::unordered_map<UserPath, std::string> g_path_overrides;
+
+std::string NormalizeDirectoryPath(const std::string& path) {
+    if (path.empty())
+        return {};
+
+    std::string normalized = path;
+    if (normalized.back() != DIR_SEP_CHR)
+        normalized.push_back(DIR_SEP_CHR);
+    return normalized;
 }
 
-void SetUserPath(const std::string& path) {
-    std::string& user_path = g_paths[UserPath::UserDir];
+void UpdateDerivedUserPaths() {
+    const std::string& user_path = g_paths[UserPath::UserDir];
 
-    if (!path.empty() && CreateFullPath(path)) {
-        LOG_INFO(Common_Filesystem, "Using {} as the user directory", path);
-        user_path = path;
-        g_paths[UserPath::ConfigDir] = user_path + CONFIG_DIR DIR_SEP;
-        g_paths[UserPath::CacheDir] = user_path + CACHE_DIR DIR_SEP;
-    } else {
-        if (FileUtil::Exists(ROOT_DIR DIR_SEP SDCARD_DIR)) {
-            user_path = ROOT_DIR DIR_SEP SDCARD_DIR DIR_SEP EMU_DATA_DIR DIR_SEP;
-            g_paths[UserPath::ConfigDir] = user_path + CONFIG_DIR DIR_SEP;
-            g_paths[UserPath::CacheDir] = user_path + CACHE_DIR DIR_SEP;
-        }
-    }
+    g_paths[UserPath::ConfigDir] = user_path + CONFIG_DIR DIR_SEP;
+    g_paths[UserPath::CacheDir] = user_path + CACHE_DIR DIR_SEP;
     g_paths[UserPath::SDMCDir] = user_path + SDMC_DIR DIR_SEP;
     g_paths[UserPath::NANDDir] = user_path + NAND_DIR DIR_SEP;
     g_paths[UserPath::SysDataDir] = user_path + SYSDATA_DIR DIR_SEP;
@@ -422,6 +422,45 @@ void SetUserPath(const std::string& path) {
     g_paths[UserPath::LoadDir] = user_path + LOAD_DIR DIR_SEP;
     g_paths[UserPath::StatesDir] = user_path + STATES_DIR DIR_SEP;
     g_paths[UserPath::AmiiboDir] = user_path + AMIIBO_DIR DIR_SEP;
+
+    for (const auto& [path, override_path] : g_path_overrides) {
+        g_paths[path] = override_path;
+    }
+}
+}
+
+void SetUserPath(const std::string& path) {
+    std::string& user_path = g_paths[UserPath::UserDir];
+    const std::string normalized_path = NormalizeDirectoryPath(path);
+
+    if (!normalized_path.empty() && CreateFullPath(normalized_path)) {
+        LOG_INFO(Common_Filesystem, "Using {} as the user directory", normalized_path);
+        user_path = normalized_path;
+    } else {
+        if (FileUtil::Exists(ROOT_DIR DIR_SEP SDCARD_DIR)) {
+            user_path = ROOT_DIR DIR_SEP SDCARD_DIR DIR_SEP EMU_DATA_DIR DIR_SEP;
+        } else {
+            user_path.clear();
+        }
+    }
+    UpdateDerivedUserPaths();
+}
+
+void SetUserPathOverride(UserPath path, const std::string& value) {
+    if (g_paths.empty())
+        SetUserPath("");
+
+    const std::string normalized_value = NormalizeDirectoryPath(value);
+    if (normalized_value.empty()) {
+        g_path_overrides.erase(path);
+    } else if (CreateFullPath(normalized_value)) {
+        g_path_overrides[path] = normalized_value;
+    } else {
+        LOG_ERROR(Common_Filesystem, "Failed to create override path {}", normalized_value);
+        return;
+    }
+
+    UpdateDerivedUserPaths();
 }
 
 const std::string& GetUserPath(UserPath path) {

@@ -27,7 +27,13 @@ public final class EditorViewHolder extends SettingViewHolder {
     public void bind(SettingsItem item) {
         mItem = (EditorSetting)item;
         mTextSettingName.setText(item.getNameId());
-        mTextSettingDescription.setText(mItem.getSelectedValue());
+        if (!mItem.getSelectedValue().isEmpty()) {
+            mTextSettingDescription.setText(mItem.getSelectedValue());
+        } else if (item.getDescriptionId() > 0) {
+            mTextSettingDescription.setText(item.getDescriptionId());
+        } else {
+            mTextSettingDescription.setText("");
+        }
     }
 
     @Override

@@ -428,6 +428,8 @@ public final class NativeLibrary {
      * emulation
      */
     public static native void SetUserPath(String path);
+    public static native void SetStatesPath(String path);
+    public static native void SetSDMCPath(String path);
     public static native void loadAmiibo(String path);
     public static native void InstallCIA(String[] path);
     public static native void HandleImage(int[] pixels, int width, int height);
