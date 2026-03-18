@@ -1,5 +1,14 @@
 apply plugin: 'com.android.application'
 
+def releaseStoreFilePath = System.getenv('ANDROID_RELEASE_STORE_FILE')
+def releaseStorePassword = System.getenv('ANDROID_RELEASE_STORE_PASSWORD')
+def releaseKeyAlias = System.getenv('ANDROID_RELEASE_KEY_ALIAS')
+def releaseKeyPassword = System.getenv('ANDROID_RELEASE_KEY_PASSWORD')
+def hasExplicitReleaseSigning = [releaseStoreFilePath, releaseStorePassword, releaseKeyAlias, releaseKeyPassword]
+        .every { it != null && !it.trim().isEmpty() }
+def useDebugSigningForRelease = (System.getenv('ANDROID_LOCAL_RELEASE_USE_DEBUG_SIGNING') ?: 'false')
+        .toBoolean()
+
 android {
     compileSdkVersion 31
 
@@ -18,11 +27,13 @@ android {
     }
 
     signingConfigs {
-        release {
-            keyAlias 'dolphin-release-key'
-            keyPassword 'zhangwei'
-            storeFile file('D:/Android/android-sign-key/dolphin-release-key.jks')
-            storePassword 'zhangwei'
+        if (hasExplicitReleaseSigning) {
+            release {
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+                storeFile file(releaseStoreFilePath)
+                storePassword releaseStorePassword
+            }
         }
     }
 
@@ -30,7 +41,11 @@ android {
     buildTypes {
         // Signed by release key, allowing for upload to Play Store.
         release {
-            signingConfig signingConfigs.release
+            if (hasExplicitReleaseSigning) {
+                signingConfig signingConfigs.release
+            } else if (useDebugSigningForRelease) {
+                signingConfig signingConfigs.debug
+            }
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
@@ -73,6 +88,16 @@ android {
                 abiFilters "arm64-v8a"
             }
         }
+    }
+}
+
+if (gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }) {
+    if (hasExplicitReleaseSigning) {
+        logger.lifecycle('Android release signing: using ANDROID_RELEASE_* environment variables')
+    } else if (useDebugSigningForRelease) {
+        logger.lifecycle('Android release signing: using debug keystore fallback for local release candidate')
+    } else {
+        logger.lifecycle('Android release signing: no signing config provided, assembleRelease will produce an unsigned APK/AAB')
     }
 }
 

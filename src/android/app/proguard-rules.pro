@@ -23,3 +23,4 @@
 -keepclasseswithmembernames class * { native <methods>; }
 -keep class org.citra.emu.NativeLibrary { *; }
 -keep interface org.citra.emu.NativeLibrary$OnScreenshotCompleteListener {*;}
+-dontwarn com.google.errorprone.annotations.Immutable

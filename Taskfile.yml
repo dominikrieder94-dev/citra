@@ -38,6 +38,38 @@ tasks:
     cmds:
       - cmd /c gradlew.bat clean :app:assembleDebug --stacktrace
 
+  build-release-apk:
+    desc: Build the Android release APK (signed if ANDROID_RELEASE_* env vars are set, otherwise unsigned)
+    dir: src/android
+    deps:
+      - setup-android
+    cmds:
+      - cmd /c gradlew.bat :app:assembleRelease --stacktrace
+
+  build-release-apk-local:
+    desc: Build a local installable Android release-candidate APK using the debug keystore fallback
+    dir: src/android
+    deps:
+      - setup-android
+    cmds:
+      - cmd /c "set ANDROID_LOCAL_RELEASE_USE_DEBUG_SIGNING=true&& gradlew.bat :app:assembleRelease --stacktrace"
+
+  install-release-apk:
+    desc: Install or update the built signed release APK on the connected Android device
+    dir: .
+    requires:
+      vars:
+        - DEVICE_SERIAL
+    cmds:
+      - adb -s {{.DEVICE_SERIAL}} install -r -d "src/android/app/build/outputs/apk/release/app-release.apk"
+
+  deploy-release-apk-local:
+    desc: Build and install a local release-candidate APK using the debug signing fallback
+    deps:
+      - build-release-apk-local
+    cmds:
+      - task: install-release-apk
+
   install-debug-apk:
     desc: Install or update the built debug APK on the connected Android device
     dir: .
