@@ -136,6 +136,14 @@ public final class SettingsFragment extends Fragment {
         Setting factor3d = rendererSection.getSetting(SettingsFile.KEY_FACTOR_3D);
         Setting largeScreenProportion =
             rendererSection.getSetting(SettingsFile.KEY_LARGE_SCREEN_PROPORTION);
+        Setting hybridSideColumnLeft =
+            rendererSection.getSetting(SettingsFile.KEY_HYBRID_SIDE_COLUMN_LEFT);
+        Setting hybridSecondaryTop =
+            rendererSection.getSetting(SettingsFile.KEY_HYBRID_SECONDARY_TOP);
+        final int currentLayout =
+            layoutOption instanceof org.citra.emu.settings.model.IntSetting
+                ? ((org.citra.emu.settings.model.IntSetting)layoutOption).getValue()
+                : 0;
 
         SettingSection debugSection = mSettings.getSection(Settings.SECTION_INI_DEBUG);
         Setting shaderType = debugSection.getSetting(SettingsFile.KEY_SHADER_TYPE);
@@ -182,6 +190,14 @@ public final class SettingsFragment extends Fragment {
                 Settings.SECTION_INI_RENDERER, R.string.large_screen_proportion,
                 R.string.large_screen_proportion_description, 25, 100, "%", 75,
                 largeScreenProportion));
+        if (currentLayout == 5) {
+            sl.add(new CheckBoxSetting(SettingsFile.KEY_HYBRID_SIDE_COLUMN_LEFT,
+                    Settings.SECTION_INI_RENDERER, R.string.hybrid_side_column_left,
+                    R.string.hybrid_side_column_left_description, false, hybridSideColumnLeft));
+            sl.add(new CheckBoxSetting(SettingsFile.KEY_HYBRID_SECONDARY_TOP,
+                    Settings.SECTION_INI_RENDERER, R.string.hybrid_secondary_top,
+                    R.string.hybrid_secondary_top_description, false, hybridSecondaryTop));
+        }
         sl.add(new SliderSetting(SettingsFile.KEY_FRAME_LIMIT, Settings.SECTION_INI_RENDERER,
                 R.string.frame_limit_slider, R.string.frame_limit_slider_description, 200, "",
                 100, frameLimit));

@@ -1646,6 +1646,12 @@ void GMainWindow::ToggleScreenLayout() {
         new_layout = Settings::LayoutOption::SideScreen;
         break;
     case Settings::LayoutOption::SideScreen:
+        new_layout = Settings::LayoutOption::LargeScreenTop;
+        break;
+    case Settings::LayoutOption::LargeScreenTop:
+        new_layout = Settings::LayoutOption::HybridScreen;
+        break;
+    case Settings::LayoutOption::HybridScreen:
         new_layout = Settings::LayoutOption::Default;
         break;
     }

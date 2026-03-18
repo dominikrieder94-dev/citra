@@ -146,6 +146,7 @@
 
     <string name="setting_header_core">System</string>
     <string name="setting_header_renderer">Renderer</string>
+    <string name="setting_header_storage">Storage</string>
     <string name="setting_header_audio">Audio</string>
     <string name="setting_header_camera">Camera</string>
     <string name="translate_settings">Translation</string>
@@ -185,6 +186,10 @@
     <string name="setting_custom_textures_description">Textures directory: citra-emu/load/textures/\"Game ID\"/.</string>
     <string name="large_screen_proportion">Top-Aligned Secondary Screen Size</string>
     <string name="large_screen_proportion_description">Only applies to Large Screen (Top Aligned). Sets the secondary screen size as a percentage of the primary screen size.</string>
+    <string name="hybrid_side_column_left">Side Column on Left</string>
+    <string name="hybrid_side_column_left_description">Only applies to Hybrid Screen. Moves the stacked side column to the left of the main screen.</string>
+    <string name="hybrid_secondary_top">Secondary Screen on Top</string>
+    <string name="hybrid_secondary_top_description">Only applies to Hybrid Screen. Places the secondary screen above the duplicated main screen.</string>
     <string name="setting_shader_type">Shader Type</string>
     <string name="setting_factor_3d">Factor 3D (3D Depth Slider)</string>
     <string name="setting_camera_type">Camera Type</string>
@@ -200,10 +205,13 @@
     <string name="running_custom_layout">Use Custom Layout</string>
     <string name="running_accurate_mul">Accurate Mul</string>
     <string name="running_layout">Layout</string>
+    <string name="browse">Browse</string>
+    <string name="use_default">Use Default</string>
     <string name="single_screen_option">Single</string>
     <string name="large_screen_option">Large</string>
     <string name="large_screen_top_option">Top</string>
     <string name="side_screen_option">Side</string>
+    <string name="hybrid_screen_option">Hybrid</string>
     <string name="running_large_screen_proportion">Top Layout Size</string>
     <string name="auto_fit_short">Auto Fit</string>
 
@@ -211,6 +219,7 @@
     <string name="large_screen">Large Screen</string>
     <string name="large_screen_top_aligned">Large Screen (Top Aligned)</string>
     <string name="side_screen">Side Screen</string>
+    <string name="hybrid_screen">Hybrid Screen</string>
     <string name="default_value">Default</string>
     <string name="auto">Auto</string>
     <string name="enable">Enable</string>

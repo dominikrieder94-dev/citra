@@ -16,6 +16,9 @@ struct FramebufferLayout {
     bool bottom_screen_enabled;
     Common::Rectangle<u32> top_screen;
     Common::Rectangle<u32> bottom_screen;
+    bool additional_screen_enabled;
+    bool additional_screen_top;
+    Common::Rectangle<u32> additional_screen;
 
     /**
      * Returns the ration of pixel size of the top screen, compared to the native size of the 3DS
@@ -85,6 +88,17 @@ FramebufferLayout LargeFrameLayoutTop(u32 width, u32 height, bool is_swapped, fl
  * @return Newly created FramebufferLayout object with top-aligned screen regions initialized
  */
 FramebufferLayout LargeFrameLayoutTopAndroid(u32 width, u32 height, bool is_swapped, float scale_ratio);
+
+/**
+ * Factory method for constructing a hybrid large-screen layout with a large primary screen, a
+ * duplicated primary screen in the upper side column, and the secondary screen below it.
+ * @param width Window framebuffer width in pixels
+ * @param height Window framebuffer height in pixels
+ * @param is_swapped if true, the bottom screen becomes the large primary screen and duplicate
+ * @return Newly created FramebufferLayout object with hybrid screen regions initialized
+ */
+FramebufferLayout HybridFrameLayout(u32 width, u32 height, bool is_swapped,
+                                    bool side_column_left, bool secondary_screen_top);
 
 /**
  * Calculates the top-aligned large-screen proportion at which the secondary screen exactly fills

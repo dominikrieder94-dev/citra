@@ -306,6 +306,10 @@ void Config::ReadLayoutValues() {
     Settings::values.layout_option =
         static_cast<Settings::LayoutOption>(ReadSetting(QStringLiteral("layout_option")).toInt());
     Settings::values.swap_screen = ReadSetting(QStringLiteral("swap_screen"), false).toBool();
+    Settings::values.hybrid_side_column_left =
+        ReadSetting(QStringLiteral("hybrid_side_column_left"), false).toBool();
+    Settings::values.hybrid_secondary_top =
+        ReadSetting(QStringLiteral("hybrid_secondary_top"), false).toBool();
     Settings::values.upright_screen = ReadSetting(QStringLiteral("upright_screen"), false).toBool();
     Settings::values.custom_layout = ReadSetting(QStringLiteral("custom_layout"), false).toBool();
     Settings::values.custom_top_left = ReadSetting(QStringLiteral("custom_top_left"), 0).toInt();
@@ -830,6 +834,10 @@ void Config::SaveLayoutValues() {
     WriteSetting(QStringLiteral("filter_mode"), Settings::values.filter_mode, true);
     WriteSetting(QStringLiteral("layout_option"), static_cast<int>(Settings::values.layout_option));
     WriteSetting(QStringLiteral("swap_screen"), Settings::values.swap_screen, false);
+    WriteSetting(QStringLiteral("hybrid_side_column_left"),
+                 Settings::values.hybrid_side_column_left, false);
+    WriteSetting(QStringLiteral("hybrid_secondary_top"),
+                 Settings::values.hybrid_secondary_top, false);
     WriteSetting(QStringLiteral("upright_screen"), Settings::values.upright_screen, false);
     WriteSetting(QStringLiteral("custom_layout"), Settings::values.custom_layout, false);
     WriteSetting(QStringLiteral("custom_top_left"), Settings::values.custom_top_left, 0);

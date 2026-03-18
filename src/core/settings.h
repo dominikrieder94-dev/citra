@@ -25,6 +25,7 @@ enum class LayoutOption {
     LargeScreen,
     SideScreen,
     LargeScreenTop,
+    HybridScreen,
 };
 
 enum class MicInputType {
@@ -189,6 +190,8 @@ struct Values {
     bool swap_screen;
     bool upright_screen;
     u16 large_screen_proportion;
+    bool hybrid_side_column_left;
+    bool hybrid_secondary_top;
     bool custom_layout;
     u16 custom_top_left;
     u16 custom_top_top;

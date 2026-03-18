@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdlib>
 #include <memory>
+#include <vector>
 #include <glad/glad.h>
 #include <queue>
 #include "common/bit_field.h"
@@ -880,29 +881,29 @@ void RendererOpenGL::DrawScreens(const Layout::FramebufferLayout& layout) {
     const auto& bottom_screen = layout.bottom_screen;
     const auto& bottom_texcoords = screen_infos[2].display_texcoords;
 
-    const std::array<ScreenRectVertex, 8> vertices = {{
-        // top screen
-        ScreenRectVertex(top_screen.left, top_screen.top, top_texcoords.bottom, top_texcoords.left),
-        ScreenRectVertex(top_screen.left, top_screen.top + top_screen.GetHeight(),
-                         top_texcoords.top, top_texcoords.left),
-        ScreenRectVertex(top_screen.left + top_screen.GetWidth(), top_screen.top,
-                         top_texcoords.bottom, top_texcoords.right),
-        ScreenRectVertex(top_screen.left + top_screen.GetWidth(),
-                         top_screen.top + top_screen.GetHeight(), top_texcoords.top,
-                         top_texcoords.right),
-        // bottom screen
-        ScreenRectVertex(bottom_screen.left, bottom_screen.top, bottom_texcoords.bottom,
-                         bottom_texcoords.left),
-        ScreenRectVertex(bottom_screen.left, bottom_screen.top + bottom_screen.GetHeight(),
-                         bottom_texcoords.top, bottom_texcoords.left),
-        ScreenRectVertex(bottom_screen.left + bottom_screen.GetWidth(), bottom_screen.top,
-                         bottom_texcoords.bottom, bottom_texcoords.right),
-        ScreenRectVertex(bottom_screen.left + bottom_screen.GetWidth(),
-                         bottom_screen.top + bottom_screen.GetHeight(), bottom_texcoords.top,
-                         bottom_texcoords.right),
-    }};
+    std::vector<ScreenRectVertex> vertices;
+    vertices.reserve(layout.additional_screen_enabled ? 12 : 8);
+    const auto append_screen_vertices = [&](const Common::Rectangle<u32>& screen,
+                                            const auto& texcoords) {
+        vertices.emplace_back(screen.left, screen.top, texcoords.bottom, texcoords.left);
+        vertices.emplace_back(screen.left, screen.top + screen.GetHeight(), texcoords.top,
+                              texcoords.left);
+        vertices.emplace_back(screen.left + screen.GetWidth(), screen.top, texcoords.bottom,
+                              texcoords.right);
+        vertices.emplace_back(screen.left + screen.GetWidth(), screen.top + screen.GetHeight(),
+                              texcoords.top, texcoords.right);
+    };
+    append_screen_vertices(top_screen, top_texcoords);
+    append_screen_vertices(bottom_screen, bottom_texcoords);
+    if (layout.additional_screen_enabled) {
+        const auto& additional_texcoords =
+            layout.additional_screen_top ? screen_infos[0].display_texcoords
+                                         : screen_infos[2].display_texcoords;
+        append_screen_vertices(layout.additional_screen, additional_texcoords);
+    }
     // prefer `glBufferData` than `glBufferSubData` on mobile device
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices.data(), GL_STREAM_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(ScreenRectVertex), vertices.data(),
+                 GL_STREAM_DRAW);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     if (bg_texture.handle) {
@@ -936,6 +937,19 @@ void RendererOpenGL::DrawScreens(const Layout::FramebufferLayout& layout) {
         float src_height = screen_info.texture.height * Settings::values.resolution_factor;
         glUniform4f(uniform_resolution, res_width, res_height, src_width, src_height);
         glDrawArrays(GL_TRIANGLE_STRIP, 4, 4);
+    }
+
+    if (layout.additional_screen_enabled) {
+        const auto& additional_screen = layout.additional_screen;
+        const ScreenInfo& screen_info =
+            layout.additional_screen_top ? screen_infos[0] : screen_infos[2];
+        OpenGLState::BindTexture2D(0, screen_info.display_texture);
+        float res_width = additional_screen.GetHeight();
+        float res_height = additional_screen.GetWidth();
+        float src_width = screen_info.texture.width * Settings::values.resolution_factor;
+        float src_height = screen_info.texture.height * Settings::values.resolution_factor;
+        glUniform4f(uniform_resolution, res_width, res_height, src_width, src_height);
+        glDrawArrays(GL_TRIANGLE_STRIP, 8, 4);
     }
     // draw on screen display
     OSD::DrawMessage(render_window, layout);

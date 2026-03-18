@@ -192,6 +192,14 @@ custom_bottom_bottom =
 # 0 (default): Top Screen is prominent, 1: Bottom Screen is prominent
 swap_screen =
 
+# When using Hybrid Screen, move the stacked side column to the left of the main screen.
+# 0 (default): Side column on the right, 1: Side column on the left
+hybrid_side_column_left =
+
+# When using Hybrid Screen, place the secondary screen above the duplicated main screen.
+# 0 (default): Secondary screen on the bottom, 1: Secondary screen on the top
+hybrid_secondary_top =
+
 # Toggle upright orientation, for book style games.
 # 0 (default): Off, 1: On
 upright_screen =

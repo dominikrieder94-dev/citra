@@ -47,6 +47,12 @@ public final class SettingsFile {
     public static final String KEY_LARGE_SCREEN_PROPORTION = "large_screen_proportion";
     public static final String KEY_LANDSCAPE_LARGE_SCREEN_PROPORTION =
         "landscape_large_screen_proportion";
+    public static final String KEY_HYBRID_SIDE_COLUMN_LEFT = "hybrid_side_column_left";
+    public static final String KEY_LANDSCAPE_HYBRID_SIDE_COLUMN_LEFT =
+        "landscape_hybrid_side_column_left";
+    public static final String KEY_HYBRID_SECONDARY_TOP = "hybrid_secondary_top";
+    public static final String KEY_LANDSCAPE_HYBRID_SECONDARY_TOP =
+        "landscape_hybrid_secondary_top";
     public static final String KEY_SHADER_TYPE = "shader_type";
     public static final String KEY_POST_PROCESSING_SHADER = "pp_shader_name";
     // Audio

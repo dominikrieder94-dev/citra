@@ -242,6 +242,16 @@
             <string>Side by Side</string>
            </property>
           </item>
+          <item>
+           <property name="text">
+            <string>Large Screen (Top Aligned)</string>
+           </property>
+          </item>
+          <item>
+           <property name="text">
+            <string>Hybrid Screen</string>
+           </property>
+          </item>
          </widget>
         </item>
        </layout>

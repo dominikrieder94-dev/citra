@@ -129,9 +129,11 @@ public class RunningSettingDialog extends DialogFragment {
         public static final int SETTING_SCALE_FACTOR = 9;
         public static final int SETTING_SCREEN_LAYOUT = 10;
         public static final int SETTING_LARGE_SCREEN_PROPORTION = 11;
-        public static final int SETTING_ACCURATE_MUL = 12;
-        public static final int SETTING_CUSTOM_LAYOUT = 13;
-        public static final int SETTING_FRAME_LIMIT = 14;
+        public static final int SETTING_HYBRID_SIDE_COLUMN_LEFT = 12;
+        public static final int SETTING_HYBRID_SECONDARY_TOP = 13;
+        public static final int SETTING_ACCURATE_MUL = 14;
+        public static final int SETTING_CUSTOM_LAYOUT = 15;
+        public static final int SETTING_FRAME_LIMIT = 16;
 
         // pref
         public static final int SETTING_JOYSTICK_RELATIVE = 100;
@@ -352,6 +354,7 @@ public class RunningSettingDialog extends DialogFragment {
             final RadioButton radio2 = mRadioGroup.findViewById(R.id.radio2);
             final RadioButton radio3 = mRadioGroup.findViewById(R.id.radio3);
             final RadioButton radio4 = mRadioGroup.findViewById(R.id.radio4);
+            final RadioButton radio5 = mRadioGroup.findViewById(R.id.radio5);
 
             if (item.getSetting() == SettingsItem.SETTING_SCREEN_LAYOUT) {
                 configureRadioButton(radio0, View.VISIBLE, R.string.default_value);
@@ -359,6 +362,7 @@ public class RunningSettingDialog extends DialogFragment {
                 configureRadioButton(radio2, View.VISIBLE, R.string.large_screen_option);
                 configureRadioButton(radio3, View.VISIBLE, R.string.large_screen_top_option);
                 configureRadioButton(radio4, View.VISIBLE, R.string.side_screen_option);
+                configureRadioButton(radio5, View.VISIBLE, R.string.hybrid_screen_option);
             } else if (item.getSetting() == SettingsItem.SETTING_SCALE_FACTOR) {
                 radio0.setVisibility(View.VISIBLE);
                 radio0.setText("x1");
@@ -369,24 +373,28 @@ public class RunningSettingDialog extends DialogFragment {
                 radio3.setVisibility(View.VISIBLE);
                 radio3.setText("x4");
                 radio4.setVisibility(View.GONE);
+                radio5.setVisibility(View.GONE);
             } else if (item.getSetting() == SettingsItem.SETTING_ACCURATE_MUL) {
                 configureRadioButton(radio0, View.VISIBLE, R.string.accurate_mul_off);
                 configureRadioButton(radio1, View.VISIBLE, R.string.accurate_mul_fast);
                 configureRadioButton(radio2, View.VISIBLE, R.string.accurate_mul_accurate);
                 radio3.setVisibility(View.GONE);
                 radio4.setVisibility(View.GONE);
+                radio5.setVisibility(View.GONE);
             } else if (item.getSetting() == SettingsItem.SETTING_FORCE_TEXTURE_FILTER) {
                 configureRadioButton(radio0, View.VISIBLE, R.string.auto);
                 configureRadioButton(radio1, View.VISIBLE, R.string.nearest);
                 configureRadioButton(radio2, View.VISIBLE, R.string.linear);
                 radio3.setVisibility(View.GONE);
                 radio4.setVisibility(View.GONE);
+                radio5.setVisibility(View.GONE);
             } else if (item.getSetting() == SettingsItem.SETTING_HW_GS_MODE) {
                 configureRadioButton(radio0, View.VISIBLE, R.string.auto);
                 configureRadioButton(radio1, View.VISIBLE, R.string.enable);
                 configureRadioButton(radio2, View.VISIBLE, R.string.off);
                 radio3.setVisibility(View.GONE);
                 radio4.setVisibility(View.GONE);
+                radio5.setVisibility(View.GONE);
             }
 
             mRadioGroup.setOnCheckedChangeListener(null);
@@ -414,6 +422,8 @@ public class RunningSettingDialog extends DialogFragment {
                     mItem.setValue(4);
                 } else if (checkedId == R.id.radio4) {
                     mItem.setValue(3);
+                } else if (checkedId == R.id.radio5) {
+                    mItem.setValue(5);
                 } else {
                     mItem.setValue(0);
                 }
@@ -453,6 +463,8 @@ public class RunningSettingDialog extends DialogFragment {
                     return R.id.radio3;
                 case 3:
                     return R.id.radio4;
+                case 5:
+                    return R.id.radio5;
                 default:
                     return R.id.radio0;
                 }
@@ -735,22 +747,30 @@ public class RunningSettingDialog extends DialogFragment {
                     SettingsItem.TYPE_CHECKBOX, mRunningSettings[i++]));
             mSettings.add(new SettingsItem(SettingsItem.SETTING_SCALE_FACTOR,
                     R.string.running_resolution, SettingsItem.TYPE_RADIO_GROUP,
-                    mRunningSettings[i++]));
+                    mRunningSettings[SettingsItem.SETTING_SCALE_FACTOR]));
             mSettings.add(new SettingsItem(SettingsItem.SETTING_SCREEN_LAYOUT,
                     R.string.running_layout, SettingsItem.TYPE_RADIO_GROUP,
-                    mRunningSettings[i++]));
+                    mRunningSettings[SettingsItem.SETTING_SCREEN_LAYOUT]));
             mSettings.add(new SettingsItem(SettingsItem.SETTING_LARGE_SCREEN_PROPORTION,
                     R.string.running_large_screen_proportion, SettingsItem.TYPE_SEEK_BAR,
-                    mRunningSettings[i++]));
+                    mRunningSettings[SettingsItem.SETTING_LARGE_SCREEN_PROPORTION]));
+            if (mRunningSettings[SettingsItem.SETTING_SCREEN_LAYOUT] == 5) {
+                mSettings.add(new SettingsItem(SettingsItem.SETTING_HYBRID_SIDE_COLUMN_LEFT,
+                        R.string.hybrid_side_column_left, SettingsItem.TYPE_CHECKBOX,
+                        mRunningSettings[SettingsItem.SETTING_HYBRID_SIDE_COLUMN_LEFT]));
+                mSettings.add(new SettingsItem(SettingsItem.SETTING_HYBRID_SECONDARY_TOP,
+                        R.string.hybrid_secondary_top, SettingsItem.TYPE_CHECKBOX,
+                        mRunningSettings[SettingsItem.SETTING_HYBRID_SECONDARY_TOP]));
+            }
             mSettings.add(new SettingsItem(SettingsItem.SETTING_ACCURATE_MUL,
                     R.string.running_accurate_mul, SettingsItem.TYPE_RADIO_GROUP,
-                    mRunningSettings[i++]));
+                    mRunningSettings[SettingsItem.SETTING_ACCURATE_MUL]));
             mSettings.add(new SettingsItem(SettingsItem.SETTING_CUSTOM_LAYOUT,
                     R.string.running_custom_layout,
-                    SettingsItem.TYPE_CHECKBOX, mRunningSettings[i++]));
+                    SettingsItem.TYPE_CHECKBOX, mRunningSettings[SettingsItem.SETTING_CUSTOM_LAYOUT]));
             mSettings.add(new SettingsItem(SettingsItem.SETTING_FRAME_LIMIT,
                     R.string.running_frame_limit,
-                    SettingsItem.TYPE_SEEK_BAR, mRunningSettings[i++]));
+                    SettingsItem.TYPE_SEEK_BAR, mRunningSettings[SettingsItem.SETTING_FRAME_LIMIT]));
             notifyDataSetChanged();
         }
 
@@ -846,11 +866,17 @@ public class RunningSettingDialog extends DialogFragment {
 
             // native settings
             boolean isChanged = false;
-            int[] newSettings = new int[mRunningSettings.length];
+            int[] newSettings = mRunningSettings.clone();
+            for (SettingsItem item : mSettings) {
+                final int setting = item.getSetting();
+                if (setting >= 0 && setting < newSettings.length) {
+                    newSettings[setting] = item.getValue();
+                }
+            }
             for (int i = 0; i < mRunningSettings.length; ++i) {
-                newSettings[i] = mSettings.get(i).getValue();
                 if (newSettings[i] != mRunningSettings[i]) {
                     isChanged = true;
+                    break;
                 }
             }
             if (isChanged) {

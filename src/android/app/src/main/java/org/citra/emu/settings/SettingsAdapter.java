@@ -135,6 +135,17 @@ public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolde
         if (setting != null) {
             mActivity.putSetting(setting);
         }
+        if (SettingsFile.KEY_HYBRID_SIDE_COLUMN_LEFT.equals(item.getKey())) {
+            BooleanSetting landscapeSetting =
+                new BooleanSetting(SettingsFile.KEY_LANDSCAPE_HYBRID_SIDE_COLUMN_LEFT,
+                                   item.getSection(), checked);
+            mActivity.putSetting(landscapeSetting);
+        } else if (SettingsFile.KEY_HYBRID_SECONDARY_TOP.equals(item.getKey())) {
+            BooleanSetting landscapeSetting =
+                new BooleanSetting(SettingsFile.KEY_LANDSCAPE_HYBRID_SECONDARY_TOP,
+                                   item.getSection(), checked);
+            mActivity.putSetting(landscapeSetting);
+        }
         mActivity.setSettingChanged();
     }
 

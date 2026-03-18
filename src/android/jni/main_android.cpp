@@ -294,6 +294,8 @@ static void UpdateDisplayRotation() {
     if (NativeLibrary::IsPortrait()) {
         Settings::values.layout_option = Config::Get(Config::LAYOUT_OPTION);
         Settings::values.large_screen_proportion = Config::Get(Config::LARGE_SCREEN_PROPORTION);
+        Settings::values.hybrid_side_column_left = Config::Get(Config::HYBRID_SIDE_COLUMN_LEFT);
+        Settings::values.hybrid_secondary_top = Config::Get(Config::HYBRID_SECONDARY_TOP);
         Settings::values.custom_top_left = Config::Get(Config::PORTRAIT_TOP_LEFT);
         Settings::values.custom_top_top = Config::Get(Config::PORTRAIT_TOP_TOP);
         Settings::values.custom_top_right = Config::Get(Config::PORTRAIT_TOP_RIGHT);
@@ -308,6 +310,10 @@ static void UpdateDisplayRotation() {
         Settings::values.layout_option = Config::Get(Config::LANDSCAPE_LAYOUT_OPTION);
         Settings::values.large_screen_proportion =
             Config::Get(Config::LANDSCAPE_LARGE_SCREEN_PROPORTION);
+        Settings::values.hybrid_side_column_left =
+            Config::Get(Config::LANDSCAPE_HYBRID_SIDE_COLUMN_LEFT);
+        Settings::values.hybrid_secondary_top =
+            Config::Get(Config::LANDSCAPE_HYBRID_SECONDARY_TOP);
         Settings::values.custom_top_left = Config::Get(Config::LANDSCAPE_TOP_LEFT);
         Settings::values.custom_top_top = Config::Get(Config::LANDSCAPE_TOP_TOP);
         Settings::values.custom_top_right = Config::Get(Config::LANDSCAPE_TOP_RIGHT);
@@ -648,7 +654,7 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_nativeStopEmulation(JNIE
 JNIEXPORT jintArray JNICALL Java_org_citra_emu_NativeLibrary_getRunningSettings(JNIEnv* env,
                                                                                 jclass obj) {
     int i = 0;
-    int settings[15];
+    int settings[17];
 
     // get settings
     settings[i++] = Settings::values.core_ticks_hack > 0;
@@ -663,6 +669,8 @@ JNIEXPORT jintArray JNICALL Java_org_citra_emu_NativeLibrary_getRunningSettings(
     settings[i++] = std::min(std::max(Settings::values.resolution_factor - 1, 0), 3);
     settings[i++] = static_cast<int>(Settings::values.layout_option);
     settings[i++] = Settings::values.large_screen_proportion;
+    settings[i++] = Settings::values.hybrid_side_column_left;
+    settings[i++] = Settings::values.hybrid_secondary_top;
     settings[i++] = static_cast<int>(Settings::values.shaders_accurate_mul);
     settings[i++] = Settings::values.custom_layout;
     settings[i++] = Settings::values.frame_limit;
@@ -746,6 +754,24 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_setRunningSettings(JNIEn
     } else {
         Config::Set(Config::LANDSCAPE_LARGE_SCREEN_PROPORTION,
                     Settings::values.large_screen_proportion);
+    }
+
+    // Hybrid side column placement
+    Settings::values.hybrid_side_column_left = settings[i++] > 0;
+    if (NativeLibrary::IsPortrait()) {
+        Config::Set(Config::HYBRID_SIDE_COLUMN_LEFT, Settings::values.hybrid_side_column_left);
+    } else {
+        Config::Set(Config::LANDSCAPE_HYBRID_SIDE_COLUMN_LEFT,
+                    Settings::values.hybrid_side_column_left);
+    }
+
+    // Hybrid stacked order
+    Settings::values.hybrid_secondary_top = settings[i++] > 0;
+    if (NativeLibrary::IsPortrait()) {
+        Config::Set(Config::HYBRID_SECONDARY_TOP, Settings::values.hybrid_secondary_top);
+    } else {
+        Config::Set(Config::LANDSCAPE_HYBRID_SECONDARY_TOP,
+                    Settings::values.hybrid_secondary_top);
     }
 
     // Accurate Mul
