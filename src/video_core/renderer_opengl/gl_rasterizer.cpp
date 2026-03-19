@@ -26,12 +26,6 @@
 #include "video_core/regs_rasterizer.h"
 #include "video_core/regs_texturing.h"
 #include "video_core/renderer_opengl/gl_rasterizer.h"
-#ifdef ANDROID
-#include <android/log.h>
-#define CITRA_GLRASTER_ANDROID_LOG(...) __android_log_print(ANDROID_LOG_INFO, "citra", __VA_ARGS__)
-#else
-#define CITRA_GLRASTER_ANDROID_LOG(...) ((void)0)
-#endif
 #include "video_core/renderer_opengl/gl_shader_gen.h"
 #include "video_core/renderer_opengl/gl_vars.h"
 #include "video_core/renderer_opengl/on_screen_display.h"
@@ -576,7 +570,6 @@ void RasterizerOpenGL::BindFramebufferDepth(OpenGLState& state, const Surface& s
 }
 
 bool RasterizerOpenGL::Draw(bool accelerate, bool is_indexed) {
-    static u32 s_sync_fb_logs = 0;
     const auto& regs = Pica::g_state.regs;
     const bool shadow_rendering = regs.framebuffer.IsShadowRendering();
     if (shadow_rendering && !AllowShadow) {
@@ -617,21 +610,6 @@ bool RasterizerOpenGL::Draw(bool accelerate, bool is_indexed) {
         framebuffer_info.color_height = color_surface->height;
     } else if (depth_surface) {
         res_scale = depth_surface->res_scale;
-    }
-
-    if (s_sync_fb_logs < 16) {
-        const PAddr color_addr = regs.framebuffer.framebuffer.GetColorBufferPhysicalAddress();
-        const PAddr depth_addr = regs.framebuffer.framebuffer.GetDepthBufferPhysicalAddress();
-        CITRA_GLRASTER_ANDROID_LOG(
-            "DrawFB[%u] color_addr=%08x depth_addr=%08x using_color=%u using_depth=%u "
-            "color_surface=%p color_tex=%u depth_surface=%p depth_tex=%u viewport=(%d,%d,%d,%d)",
-            s_sync_fb_logs, color_addr, depth_addr, using_color_fb ? 1 : 0,
-            using_depth_fb ? 1 : 0, color_surface.get(),
-            color_surface ? color_surface->texture.handle : 0, depth_surface.get(),
-            depth_surface ? depth_surface->texture.handle : 0, viewport_rect_unscaled.left,
-            viewport_rect_unscaled.top, viewport_rect_unscaled.right,
-            viewport_rect_unscaled.bottom);
-        ++s_sync_fb_logs;
     }
 
     // Sync and bind the texture surfaces
@@ -1485,7 +1463,6 @@ bool RasterizerOpenGL::AccelerateFill(const GPU::Regs::MemoryFillConfig& config)
 bool RasterizerOpenGL::AccelerateDisplay(const GPU::Regs::FramebufferConfig& config,
                                          PAddr framebuffer_addr, u32 pixel_stride,
                                          ScreenInfo& screen_info) {
-    static u32 s_accel_display_logs = 0;
     if (framebuffer_addr == 0) {
         return false;
     }
@@ -1516,19 +1493,6 @@ bool RasterizerOpenGL::AccelerateDisplay(const GPU::Regs::FramebufferConfig& con
         (float)src_rect.top / (float)scaled_height, (float)src_rect.right / (float)scaled_width);
 
     screen_info.display_texture = src_surface->texture.handle;
-
-    if (s_accel_display_logs < 8) {
-        CITRA_GLRASTER_ANDROID_LOG(
-            "AccelerateDisplay[%u] fb_addr=%08x stride=%u src_surface=%p tex=%u scaled=%ux%u "
-            "src_rect=(%u,%u,%u,%u) texcoords=(%.3f,%.3f,%.3f,%.3f)",
-            s_accel_display_logs, framebuffer_addr, pixel_stride, src_surface.get(),
-            src_surface->texture.handle, scaled_width, scaled_height, src_rect.left, src_rect.top,
-            src_rect.right, src_rect.bottom, screen_info.display_texcoords.left,
-            screen_info.display_texcoords.top, screen_info.display_texcoords.right,
-            screen_info.display_texcoords.bottom);
-        ++s_accel_display_logs;
-    }
-
     return true;
 }
 

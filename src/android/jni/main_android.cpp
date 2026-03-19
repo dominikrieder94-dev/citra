@@ -4,7 +4,6 @@
 #include <mutex>
 #include <string>
 
-#include <android/log.h>
 #include <android/native_window_jni.h>
 
 #include "common/common_paths.h"
@@ -38,13 +37,9 @@
 
 static ANativeWindow* s_surface = nullptr;
 
-#define CITRA_ANDROID_LOG(...) __android_log_print(ANDROID_LOG_INFO, "citra", __VA_ARGS__)
-
 static std::atomic<bool> s_update_hid;
 static std::atomic<bool> s_stop_running;
 static std::atomic<bool> s_is_running;
-static std::atomic<u64> s_do_frame_count;
-static std::atomic<u64> s_runloop_count;
 static std::mutex s_running_mutex;
 static std::condition_variable s_running_cv;
 static std::unique_ptr<EGLAndroid> s_render_window;
@@ -85,7 +80,6 @@ struct GameInfo {
 static std::map<std::string, GameInfo> s_app_dict;
 
 void BootGame(const std::string& path) {
-    CITRA_ANDROID_LOG("BootGame start: %s", path.c_str());
     NativeLibrary::UpdateProgress("BootGame", 0, 1);
 
     s_render_window = std::make_unique<EGLAndroid>(Settings::values.use_present_thread);
@@ -101,7 +95,6 @@ void BootGame(const std::string& path) {
     // cfg->UpdateConfigNANDSavegame();
 
     Core::System::ResultStatus result = system.Load(*s_render_window, path);
-    CITRA_ANDROID_LOG("system.Load result=%u", static_cast<u32>(result));
     if (result != Core::System::ResultStatus::Success) {
         switch (result) {
         case Core::System::ResultStatus::ErrorGetLoader:
@@ -145,7 +138,6 @@ void BootGame(const std::string& path) {
             break;
         }
         s_render_window.reset();
-        CITRA_ANDROID_LOG("BootGame abort during load: result=%u", static_cast<u32>(result));
         return;
     }
 
@@ -157,26 +149,15 @@ void BootGame(const std::string& path) {
     s_update_hid = false;
     s_stop_running = false;
     s_is_running = true;
-    s_runloop_count = 0;
     while (!s_stop_running) {
         if (s_is_running) {
             result = system.RunLoop();
-            if (result != Core::System::ResultStatus::Success) {
-                CITRA_ANDROID_LOG("system.RunLoop result=%u stop=%d running=%d count=%llu",
-                                  static_cast<u32>(result),
-                                  static_cast<int>(s_stop_running.load()),
-                                  static_cast<int>(s_is_running.load()),
-                                  static_cast<unsigned long long>(++s_runloop_count));
-            }
             if (result == Core::System::ResultStatus::ShutdownRequested) {
                 // End emulation execution
                 s_render_window->UpdateSurface(nullptr);
-                CITRA_ANDROID_LOG("BootGame received ShutdownRequested");
                 break;
             } else if (result != Core::System::ResultStatus::Success) {
                 s_stop_running = true;
-                CITRA_ANDROID_LOG("BootGame stopping due to error result=%u details=%s",
-                                  static_cast<u32>(result), system.GetStatusDetails().c_str());
                 NativeLibrary::ShowMessageDialog(0, fmt::format("Error {}: {}",
                                                                 static_cast<u32>(result),
                                                                 system.GetStatusDetails()));
@@ -198,10 +179,6 @@ void BootGame(const std::string& path) {
         }
     }
 
-    if (s_stop_running && result == Core::System::ResultStatus::Success) {
-        CITRA_ANDROID_LOG("BootGame loop ended because stop flag was set externally");
-    }
-
     // Shutdown the core emulation
     s_render_window->DoneCurrent();
     hid.reset();
@@ -210,7 +187,6 @@ void BootGame(const std::string& path) {
     s_is_running = false;
     resetSearchResults();
     Config::Save();
-    CITRA_ANDROID_LOG("BootGame end");
 }
 
 static bool GetSMDHData(Loader::AppLoader* loader, Loader::SMDH* smdh) {
@@ -325,18 +301,6 @@ static void UpdateDisplayRotation() {
         Settings::values.custom_layout = Config::Get(Config::LANDSCAPE_CUSTOM_LAYOUT);
         Settings::values.swap_screen = Config::Get(Config::LANDSCAPE_SWAP_SCREEN);
     }
-
-    CITRA_ANDROID_LOG(
-        "UpdateDisplayRotation rotation=%d portrait=%d layout_option=%d custom_layout=%d "
-        "top=(%u,%u,%u,%u) bottom=(%u,%u,%u,%u)",
-        static_cast<int>(NativeLibrary::current_display_rotation.load()),
-        NativeLibrary::IsPortrait() ? 1 : 0,
-        static_cast<int>(Settings::values.layout_option),
-        Settings::values.custom_layout ? 1 : 0, Settings::values.custom_top_left,
-        Settings::values.custom_top_top, Settings::values.custom_top_right,
-        Settings::values.custom_top_bottom, Settings::values.custom_bottom_left,
-        Settings::values.custom_bottom_top, Settings::values.custom_bottom_right,
-        Settings::values.custom_bottom_bottom);
 }
 
 #ifdef __cplusplus
@@ -372,21 +336,14 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_SetUserPath(JNIEnv* env,
     if (path[path.size() - 1] != '/')
         path.push_back('/');
     FileUtil::SetUserPath(path);
-    CITRA_ANDROID_LOG("SetUserPath: %s", path.c_str());
 
     // create user directory
     FileUtil::CreateFullPath(FileUtil::GetUserPath(FileUtil::UserPath::AmiiboDir));
     FileUtil::CreateFullPath(FileUtil::GetUserPath(FileUtil::UserPath::CacheDir));
     FileUtil::CreateFullPath(FileUtil::GetUserPath(FileUtil::UserPath::ConfigDir));
     FileUtil::CreateFullPath(FileUtil::GetUserPath(FileUtil::UserPath::LogDir));
-    const std::string config_path =
-        FileUtil::GetUserPath(FileUtil::UserPath::ConfigDir) + "config-mmj.ini";
-    CITRA_ANDROID_LOG("Config path: %s exists=%d", config_path.c_str(),
-                      static_cast<int>(FileUtil::Exists(config_path)));
-    if (!FileUtil::Exists(config_path)) {
+    if (!FileUtil::Exists(FileUtil::GetUserPath(FileUtil::UserPath::ConfigDir) + "config-mmj.ini")) {
         Config::SaveDefault();
-        CITRA_ANDROID_LOG("Config::SaveDefault written: %s exists_now=%d", config_path.c_str(),
-                          static_cast<int>(FileUtil::Exists(config_path)));
     }
 
     // Register frontend applets
@@ -411,14 +368,12 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_SetStatesPath(JNIEnv* en
                                                                       jstring jPath) {
     const std::string path = JniHelper::Unwrap(jPath);
     FileUtil::SetUserPathOverride(FileUtil::UserPath::StatesDir, path);
-    CITRA_ANDROID_LOG("SetStatesPath: %s", path.c_str());
 }
 
 JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_SetSDMCPath(JNIEnv* env, jclass obj,
                                                                     jstring jPath) {
     const std::string path = JniHelper::Unwrap(jPath);
     FileUtil::SetUserPathOverride(FileUtil::UserPath::SDMCDir, path);
-    CITRA_ANDROID_LOG("SetSDMCPath: %s", path.c_str());
 }
 
 JNIEXPORT jboolean JNICALL Java_org_citra_emu_NativeLibrary_IsRunning(JNIEnv* env, jclass obj) {
@@ -452,10 +407,6 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_WindowChanged(JNIEnv* en
 JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_DoFrame(JNIEnv* env, jclass obj) {
     if (!s_is_running || s_stop_running) {
         return;
-    }
-    const auto frame_count = ++s_do_frame_count;
-    if ((frame_count % 120) == 0) {
-        CITRA_ANDROID_LOG("DoFrame callbacks=%llu", static_cast<unsigned long long>(frame_count));
     }
     s_render_window->TryPresenting();
 }
@@ -527,7 +478,6 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_MoveEvent(JNIEnv* env, j
 
 JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_Run(JNIEnv* env, jclass obj,
                                                             jstring jFile) {
-    CITRA_ANDROID_LOG("NativeLibrary.Run enter");
     NativeLibrary::Initialize(env);
     // reload config
     Config::Clear();
@@ -572,8 +522,7 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_Run(JNIEnv* env, jclass 
     Settings::values.shadow_rendering = Config::Get(Config::SHADOW_RENDERING);
     Settings::values.use_present_thread = Config::Get(Config::USE_PRESENT_THREAD);
 #ifdef ANDROID
-    // The Android renderer is currently running on the direct swap path.
-    // Keep EGL on the window context instead of the shared pbuffer context.
+    // The Android renderer still requires the direct swap path in this tree.
     Settings::values.use_present_thread = false;
 #endif
     Settings::values.core_downcount_hack = Config::Get(Config::CPU_USAGE_LIMIT);
@@ -611,7 +560,6 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_Run(JNIEnv* env, jclass 
     Settings::values.force_texture_filter = 0;
     Settings::values.stream_buffer_hack = !Settings::values.use_present_thread;
     Settings::values.use_fence_sync = Config::Get(Config::USE_FENCE_SYNC);
-    s_do_frame_count = 0;
 
     // profile
     InputManager::GetInstance().Init();
@@ -637,7 +585,6 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_Run(JNIEnv* env, jclass 
 
     // shotdown
     InputManager::GetInstance().Shutdown();
-    CITRA_ANDROID_LOG("NativeLibrary.Run exit -> Shutdown");
     NativeLibrary::Shutdown(env);
 }
 
@@ -655,9 +602,6 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_PauseEmulation(JNIEnv* e
 
 JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_nativeStopEmulation(JNIEnv* env,
                                                                             jclass obj) {
-    CITRA_ANDROID_LOG("nativeStopEmulation invoked render_window=%p running=%d stop=%d",
-                      s_render_window.get(), static_cast<int>(s_is_running.load()),
-                      static_cast<int>(s_stop_running.load()));
     s_stop_running = true;
     if (s_render_window) {
         s_render_window->StopPresenting();

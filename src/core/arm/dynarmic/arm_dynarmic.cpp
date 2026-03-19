@@ -414,6 +414,11 @@ std::unique_ptr<Dynarmic::A32::Jit> ARM_Dynarmic::MakeJit() {
     config.page_table = &current_page_table->pointers;
     config.coprocessors[15] = std::make_shared<DynarmicCP15>(cp15_state);
     config.define_unpredictable_behaviour = true;
+#ifdef ANDROID
+    // The current Dynarmic default reserves a very large code cache on Android.
+    // A smaller cache reduces native-heap pressure on-device and is still ample for 3DS workloads.
+    config.code_cache_size = 64 * 1024 * 1024;
+#endif
     return std::make_unique<Dynarmic::A32::Jit>(config);
 }
 

@@ -881,29 +881,55 @@ void RendererOpenGL::DrawScreens(const Layout::FramebufferLayout& layout) {
     const auto& bottom_screen = layout.bottom_screen;
     const auto& bottom_texcoords = screen_infos[2].display_texcoords;
 
-    std::vector<ScreenRectVertex> vertices;
-    vertices.reserve(layout.additional_screen_enabled ? 12 : 8);
-    const auto append_screen_vertices = [&](const Common::Rectangle<u32>& screen,
-                                            const auto& texcoords) {
-        vertices.emplace_back(screen.left, screen.top, texcoords.bottom, texcoords.left);
-        vertices.emplace_back(screen.left, screen.top + screen.GetHeight(), texcoords.top,
-                              texcoords.left);
-        vertices.emplace_back(screen.left + screen.GetWidth(), screen.top, texcoords.bottom,
-                              texcoords.right);
-        vertices.emplace_back(screen.left + screen.GetWidth(), screen.top + screen.GetHeight(),
-                              texcoords.top, texcoords.right);
-    };
-    append_screen_vertices(top_screen, top_texcoords);
-    append_screen_vertices(bottom_screen, bottom_texcoords);
+    const std::array<ScreenRectVertex, 8> base_vertices = {{
+        ScreenRectVertex(top_screen.left, top_screen.top, top_texcoords.bottom, top_texcoords.left),
+        ScreenRectVertex(top_screen.left, top_screen.top + top_screen.GetHeight(),
+                         top_texcoords.top, top_texcoords.left),
+        ScreenRectVertex(top_screen.left + top_screen.GetWidth(), top_screen.top,
+                         top_texcoords.bottom, top_texcoords.right),
+        ScreenRectVertex(top_screen.left + top_screen.GetWidth(),
+                         top_screen.top + top_screen.GetHeight(), top_texcoords.top,
+                         top_texcoords.right),
+        ScreenRectVertex(bottom_screen.left, bottom_screen.top, bottom_texcoords.bottom,
+                         bottom_texcoords.left),
+        ScreenRectVertex(bottom_screen.left, bottom_screen.top + bottom_screen.GetHeight(),
+                         bottom_texcoords.top, bottom_texcoords.left),
+        ScreenRectVertex(bottom_screen.left + bottom_screen.GetWidth(), bottom_screen.top,
+                         bottom_texcoords.bottom, bottom_texcoords.right),
+        ScreenRectVertex(bottom_screen.left + bottom_screen.GetWidth(),
+                         bottom_screen.top + bottom_screen.GetHeight(), bottom_texcoords.top,
+                         bottom_texcoords.right),
+    }};
+
     if (layout.additional_screen_enabled) {
+        std::array<ScreenRectVertex, 12> vertices = {{
+            base_vertices[0], base_vertices[1], base_vertices[2], base_vertices[3], base_vertices[4],
+            base_vertices[5], base_vertices[6], base_vertices[7],
+            ScreenRectVertex(0.0f, 0.0f, 0.0f, 0.0f),
+            ScreenRectVertex(0.0f, 0.0f, 0.0f, 0.0f),
+            ScreenRectVertex(0.0f, 0.0f, 0.0f, 0.0f),
+            ScreenRectVertex(0.0f, 0.0f, 0.0f, 0.0f),
+        }};
+        const auto& additional_screen = layout.additional_screen;
         const auto& additional_texcoords =
             layout.additional_screen_top ? screen_infos[0].display_texcoords
                                          : screen_infos[2].display_texcoords;
-        append_screen_vertices(layout.additional_screen, additional_texcoords);
+        vertices[8] = ScreenRectVertex(additional_screen.left, additional_screen.top,
+                                       additional_texcoords.bottom, additional_texcoords.left);
+        vertices[9] = ScreenRectVertex(additional_screen.left,
+                                       additional_screen.top + additional_screen.GetHeight(),
+                                       additional_texcoords.top, additional_texcoords.left);
+        vertices[10] = ScreenRectVertex(additional_screen.left + additional_screen.GetWidth(),
+                                        additional_screen.top, additional_texcoords.bottom,
+                                        additional_texcoords.right);
+        vertices[11] = ScreenRectVertex(additional_screen.left + additional_screen.GetWidth(),
+                                        additional_screen.top + additional_screen.GetHeight(),
+                                        additional_texcoords.top, additional_texcoords.right);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices.data(), GL_STREAM_DRAW);
+    } else {
+        // Prefer `glBufferData` over `glBufferSubData` on mobile drivers.
+        glBufferData(GL_ARRAY_BUFFER, sizeof(base_vertices), base_vertices.data(), GL_STREAM_DRAW);
     }
-    // prefer `glBufferData` than `glBufferSubData` on mobile device
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(ScreenRectVertex), vertices.data(),
-                 GL_STREAM_DRAW);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     if (bg_texture.handle) {

@@ -1,16 +1,12 @@
 #include "egl_android.h"
 
-#include <android/log.h>
 #include <android/native_window_jni.h>
 #include <glad/glad.h>
-#include <atomic>
 #include <array>
 
 #include "jni_common.h"
 #include "video_core/renderer_base.h"
 #include "video_core/video_core.h"
-
-#define CITRA_ANDROID_LOG(...) __android_log_print(ANDROID_LOG_INFO, "citra", __VA_ARGS__)
 
 static constexpr std::array<EGLint, 15> egl_attribs{EGL_SURFACE_TYPE,
                                                     EGL_WINDOW_BIT,
@@ -181,33 +177,17 @@ EGLAndroid::~EGLAndroid() {
 }
 
 void EGLAndroid::TryPresenting() {
-    static std::atomic<u64> present_callbacks{};
-    static std::atomic<u64> present_successes{};
-    const auto callback_count = ++present_callbacks;
     if (presenting_state != PresentingState::Running) {
         if (presenting_state == PresentingState::Initial) {
             eglMakeCurrent(egl_display, egl_surface, egl_surface, egl_context);
             glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
             presenting_state = PresentingState::Running;
-            CITRA_ANDROID_LOG("TryPresenting entered running state");
         } else {
-            if ((callback_count % 120) == 0) {
-                CITRA_ANDROID_LOG("TryPresenting skipped state=%d", static_cast<int>(presenting_state));
-            }
             return;
         }
     }
     if (VideoCore::Renderer()->TryPresent()) {
-        const auto success_count = ++present_successes;
-        if ((success_count % 120) == 0) {
-            CITRA_ANDROID_LOG("TryPresenting presented=%llu callbacks=%llu",
-                              static_cast<unsigned long long>(success_count),
-                              static_cast<unsigned long long>(callback_count));
-        }
         eglSwapBuffers(egl_display, egl_surface);
-    } else if ((callback_count % 120) == 0) {
-        CITRA_ANDROID_LOG("TryPresenting no frame callbacks=%llu",
-                          static_cast<unsigned long long>(callback_count));
     }
 }
 
