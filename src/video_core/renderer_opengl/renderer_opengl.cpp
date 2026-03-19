@@ -850,24 +850,17 @@ void RendererOpenGL::ConfigureFramebufferTexture(TextureInfo& texture,
  * Draws the emulated screens to the emulator window.
  */
 void RendererOpenGL::DrawScreens(const Layout::FramebufferLayout& layout) {
-    state.draw.shader_program = shader.handle;
-    state.draw.vertex_array = vertex_array.handle;
-    state.draw.vertex_buffer = vertex_buffer.handle;
-    state.viewport.x = 0;
-    state.viewport.y = 0;
-    state.viewport.width = layout.width;
-    state.viewport.height = layout.height;
-    state.cull.enabled = false;
-    state.depth.test_enabled = false;
-    state.depth.write_mask = GL_FALSE;
-    state.stencil.test_enabled = false;
-    state.blend.enabled = false;
-    state.scissor.enabled = false;
-    state.color_mask.red_enabled = GL_TRUE;
-    state.color_mask.green_enabled = GL_TRUE;
-    state.color_mask.blue_enabled = GL_TRUE;
-    state.color_mask.alpha_enabled = GL_TRUE;
-    state.Apply();
+    OpenGLState::BindShaderProgram(shader.handle);
+    OpenGLState::BindVertexArray(vertex_array.handle);
+    OpenGLState::BindVertexBuffer(vertex_buffer.handle);
+    glViewport(0, 0, layout.width, layout.height);
+    glDisable(GL_CULL_FACE);
+    glDisable(GL_DEPTH_TEST);
+    glDepthMask(GL_FALSE);
+    glDisable(GL_STENCIL_TEST);
+    glDisable(GL_BLEND);
+    glDisable(GL_SCISSOR_TEST);
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
     OpenGLState::BindSampler(0, filter_sampler.handle);
 
     // Set projection matrix
