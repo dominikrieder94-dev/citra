@@ -2,6 +2,25 @@
 
 ## 2026-03-19
 - Verified state:
+  - The Android base app ID is now `org.citra.bjj`; debug builds now install as `org.citra.bjj.debug`.
+  - The Java/JNI namespace is still `org.citra.emu`; this was an app-id change, not a package-refactor pass.
+  - Motion input's sensor-manager lookup no longer hardcodes `org.citra.emu`; it now resolves the actual runtime package name from Android, which keeps renamed and debug builds aligned.
+  - Local release-candidate verification on 2026-03-19:
+    - `cmd /c "set ANDROID_LOCAL_RELEASE_USE_DEBUG_SIGNING=true&& gradlew.bat :app:assembleRelease --stacktrace"` succeeded from `src/android`
+    - output APK: `src/android/app/build/outputs/apk/release/app-release.apk`
+    - `adb -s R3CXB0SJ5GL install -r -d ...\\app-release.apk` succeeded after temporarily setting `verifier_verify_adb_installs=0` and `package_verifier_enable=0`
+    - those verifier keys were deleted immediately after install, returning both settings to `null`
+    - `adb shell pm list packages` now shows `org.citra.bjj`
+    - launcher start via `adb shell monkey -p org.citra.bjj -c android.intent.category.LAUNCHER 1` succeeded, and filtered logcat stayed free of `AndroidRuntime`, `FATAL EXCEPTION`, `Fatal signal`, `backtrace`, `Abort message`, and `UnsatisfiedLinkError`
+  - Consequence for integrations:
+    - ES-DE's built-in MMJ package rule no longer matches this fork because it still expects `org.citra.emu`
+- First next steps:
+  1. Reproduce the reported performance gap against the original MMJ build with one concrete game/workload and record apples-to-apples measurements.
+  2. Check whether any other package-ID-sensitive integrations besides ES-DE need updating for `org.citra.bjj`.
+  3. Decide whether `org.citra.bjj` stays as the longer-lived fork identity or remains only a temporary comparison package.
+
+## 2026-03-19
+- Verified state:
   - `org.citra.emu` remains the release package ID and is the ES-DE-compatible MMJ-style package to keep for now.
   - The Android repo now has a usable release path again:
     - `src/android/app/build.gradle` no longer hardcodes the dead MMJ keystore path

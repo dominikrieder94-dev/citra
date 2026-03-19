@@ -218,6 +218,17 @@ public final class NativeLibrary {
         return MainActivity.get();
     }
 
+    public static String getPackageNameString() {
+        Context context = getMainContext();
+        if (context == null) {
+            context = getEmulationContext();
+        }
+        if (context == null) {
+            context = tryGetApplicationContext();
+        }
+        return context != null ? context.getPackageName() : "org.citra.bjj";
+    }
+
     public static Context getEmulationContext() {
         return EmulationActivity.get();
     }

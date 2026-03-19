@@ -1,5 +1,17 @@
 # DECISIONS
 
+## 2026-03-19 - Use `org.citra.bjj` as the temporary Android app ID for side-by-side MMJ installs
+- Context: The owner wants to compare this fork directly against the original MMJ app on the same phone, which is awkward if this repo keeps claiming the MMJ-style package ID `org.citra.emu`.
+- Decision: Change the Android base `applicationId` from `org.citra.emu` to `org.citra.bjj`, keep the Java/JNI namespace `org.citra.emu` unchanged for now, and let debug continue to append `.debug`.
+- Rationale:
+  - It enables clean parallel installation with the original MMJ package instead of replacing it.
+  - It keeps the code change reviewable by avoiding a broad Java package refactor.
+  - It makes later performance comparisons on one device easier because package identity no longer collides.
+- Consequences:
+  - The repo's current Android package IDs are `org.citra.bjj` for release and `org.citra.bjj.debug` for debug.
+  - Runtime code that truly depends on the installed package name must query it dynamically instead of assuming `org.citra.emu`.
+  - ES-DE's built-in MMJ detection no longer matches this fork automatically because it still keys off `org.citra.emu`.
+
 ## 2026-03-19 - Replace hardcoded Android release signing with env-driven signing and local fallback
 - Context: The repo's Android `release` build still pointed at a dead local MMJ keystore path, so `assembleRelease` failed immediately, blocking any serious move toward a first releasable APK.
 - Decision: Stop hardcoding a release keystore in `src/android/app/build.gradle` and support:
@@ -11,7 +23,7 @@
   - It gives the repo a real release path without pretending a publish-ready signing key is available in git.
   - It keeps local device validation possible for the non-debug package without forcing immediate key-management work.
 - Consequences:
-  - `org.citra.emu` can now be built as a release APK again.
+  - The repo can now build a local release APK again for whatever base Android app ID is configured; at the time of this signing change, that package ID was still `org.citra.emu`.
   - The debug-key fallback is only suitable for local release candidates; switching to a real public signing key later will produce a different update lineage.
   - Releaseability work still remains: target SDK modernization, release naming clarity, and final signing-key strategy.
 

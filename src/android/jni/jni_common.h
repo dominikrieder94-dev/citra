@@ -18,6 +18,7 @@ public:
 
     static jobject GetEmulationContext();
     static int GetDisplayRotation();
+    static std::string GetPackageName();
     static bool IsPortrait();
     static bool CheckRecordPermission();
     static void SaveImageToFile(const std::string& path, const std::vector<u8>& pixels, u32 width,

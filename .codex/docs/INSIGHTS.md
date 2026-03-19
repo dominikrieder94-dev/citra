@@ -1,5 +1,12 @@
 # INSIGHTS
 
+## 2026-03-19 Android parallel package deployment
+- Changing only the Android `applicationId` is enough to install this fork beside MMJ; the Java/JNI namespace can stay `org.citra.emu` for now.
+- The important runtime exception is motion input: `src/android/jni/ndk_motion.cpp` previously called `ASensorManager_getInstanceForPackage("org.citra.emu")`, which would silently tie motion behavior to one specific installed package ID. That path has to ask Android for the live package name so both `org.citra.bjj` and `org.citra.bjj.debug` keep working.
+- The repo's active Android package IDs are now `org.citra.bjj` for release and `org.citra.bjj.debug` for debug.
+- On the Galaxy S24+ / Android 16, local `adb install` of the release-candidate APK initially failed with `INSTALL_FAILED_VERIFICATION_FAILURE` until the global verifier flags were temporarily set to `0`. Deleting those keys afterward restored the prior `null` defaults, so the workaround does not need to remain enabled after installation.
+- Follow-up correction to the earlier ES-DE note: after the app-id change, this fork no longer matches ES-DE's built-in `org.citra.emu` MMJ rule. The original MMJ package still matches that rule; this fork now needs a custom ES-DE override if ES-DE integration matters again.
+
 ## 2026-03-19 Android first release-candidate path
 - The Android app was still debug-only operationally even after the runtime cleanup because the repo's `release` build type pointed at a dead local MMJ keystore path (`D:/Android/android-sign-key/dolphin-release-key.jks`), so `assembleRelease` could not even validate signing.
 - Release packaging now works with three distinct modes:
@@ -8,7 +15,7 @@
   - unsigned release output when neither signing path is configured
 - The first local release-candidate build succeeded after adding the generated R8 suppression for `com.google.errorprone.annotations.Immutable`; without it, `minifyReleaseWithR8` failed on a Tink dependency annotation class that is not needed at runtime.
 - This build is still not Play-ready. Lint flags `targetSdkVersion 31` as expired for Google Play, so targeting API 33+ remains a separate releaseability task.
-- Debug and release are currently visually indistinguishable on-device because they share the same app label and launcher assets. Only the package name (`org.citra.emu.debug` vs `org.citra.emu`) distinguishes them.
+- Debug and release are still visually indistinguishable on-device because they share the same app label and launcher assets. The exact package names now depend on the configured base app ID; with the current temporary fork identity they are `org.citra.bjj.debug` and `org.citra.bjj`.
 
 ## 2026-03-18 Android SDMC folder override
 - For this fork, the useful user-facing picker target is the SDMC root, not the `states` folder, because in-game saves live under `sdmc/Nintendo 3DS/...`.

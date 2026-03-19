@@ -70,10 +70,11 @@ class NDKMotion final : public Input::MotionDevice {
     }
 
     void Construct(std::chrono::microseconds update_period) {
-        sensor_manager = GetInstanceForPackage("org.citra.emu");
+        const std::string package_name = NativeLibrary::GetPackageName();
+        sensor_manager = GetInstanceForPackage(package_name.c_str());
         looper = ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
         if (!sensor_manager || !looper) {
-            LOG_CRITICAL(Input, "Could not retrieve sensor manager");
+            LOG_CRITICAL(Input, "Could not retrieve sensor manager for package {}", package_name);
             return;
         }
         event_queue = ASensorManager_createEventQueue(sensor_manager, looper, 0, nullptr, nullptr);

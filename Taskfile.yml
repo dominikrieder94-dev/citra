@@ -111,4 +111,4 @@ tasks:
       vars:
         - DEVICE_SERIAL
     cmds:
-      - powershell -NoProfile -Command "adb -s {{.DEVICE_SERIAL}} logcat -d | Select-String -Pattern 'org\.citra\.emu\.debug|AndroidRuntime|FATAL EXCEPTION|Fatal signal|backtrace|Abort message|UnsatisfiedLinkError'"
+      - powershell -NoProfile -Command "adb -s {{.DEVICE_SERIAL}} logcat -d | Select-String -Pattern 'org\.citra\.bjj(\.debug)?|AndroidRuntime|FATAL EXCEPTION|Fatal signal|backtrace|Abort message|UnsatisfiedLinkError'"

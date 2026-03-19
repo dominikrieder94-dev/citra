@@ -36,6 +36,19 @@ int NativeLibrary::GetDisplayRotation() {
     return JniHelper::CallStaticMethod<int>(CLASS, "getDisplayRotation");
 }
 
+std::string NativeLibrary::GetPackageName() {
+    JNIEnv* env = JniHelper::GetEnvForThread();
+    jstring package_name = static_cast<jstring>(JniHelper::CallStaticObjectMethod(
+        CLASS, "getPackageNameString", "()Ljava/lang/String;"));
+    if (!package_name) {
+        return {};
+    }
+
+    const std::string result = JniHelper::Unwrap(package_name);
+    env->DeleteLocalRef(package_name);
+    return result;
+}
+
 bool NativeLibrary::IsPortrait() {
     return current_display_rotation == 0 || current_display_rotation == 2;
 }

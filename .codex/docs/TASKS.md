@@ -2,11 +2,12 @@
 
 ## Priority
 - [ ] Maintain and publish a clear roadmap for the fork as a new go-to 3DS emulator; track “weihuoya/citra” issue backlog for high-impact regressions.
+- [ ] Investigate why this fork performs a bit worse than the original MMJ build on the target phone; capture one reproducible test case and compare build type, renderer path, clocks, and any added overhead.
 - [ ] Rework screen-layout settings into a dedicated, less crowded UI component with layout-specific controls shown dynamically from the selected layout.
 - [ ] Merge the current `Large Screen` and `Large Screen (Top Aligned)` configuration model into one clearer layout family.
 - [ ] Add the remaining layout-specific placement controls and UI cleanup: top-aligned side/vertical options and per-edge custom padding controls.
 - [ ] Decide how far Android storage follow-up should go beyond the new `SDMC Folder` and `Save States Folder` overrides: import/migration flow, better validation, or full user-data relocation.
-- [ ] Make debug and release Android builds visually distinguishable on-device so `org.citra.emu` and `org.citra.emu.debug` are not confusing during testing.
+- [ ] Make debug and release Android builds visually distinguishable on-device so `org.citra.bjj` and `org.citra.bjj.debug` are not confusing during testing.
 - [ ] Raise Android target SDK and related release settings high enough for a real Play-style release path.
 - [ ] Decide how to replace or minimize the broad local Boost import while keeping Android toolchain compatibility.
 - [ ] Validate the current Android build/runtime on at least one representative set of games and record residual issues.
@@ -14,6 +15,7 @@
 - [ ] Decide whether current Android build warnings should be reduced now or left as tracked modernization debt.
 
 ## Done
+- [x] Rename the Android base application ID to `org.citra.bjj`, keep the namespace stable, and deploy a local release-candidate APK to `R3CXB0SJ5GL` for side-by-side testing. (2026-03-19)
 - [x] Restore an Android release build path by removing the dead hardcoded MMJ keystore, adding env-driven signing, and verifying a local release-candidate APK for `org.citra.emu`. (2026-03-19)
 - [x] Add Android `SDMC Folder` selection so a Citra-style external `Nintendo 3DS/...` save-data tree can be reused without relocating the full user directory, while also accepting higher parent folders and empty new roots. (2026-03-18)
 - [x] Add Android save-state folder selection so an existing on-device `states` directory can be reused without relocating the whole user directory. (2026-03-18)
