@@ -479,7 +479,6 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_WindowChanged(JNIEnv* en
 }
 
 JNIEXPORT jboolean JNICALL Java_org_citra_emu_NativeLibrary_DoFrame(JNIEnv* env, jclass obj) {
-    static int doframe_debug_logs = 0;
     // Keep the Choreographer loop alive until the render window exists. Before
     // NativeLibrary.Run loads config and BootGame creates EGLAndroid,
     // use_present_thread is still at its default value and would otherwise stop
@@ -488,20 +487,12 @@ JNIEXPORT jboolean JNICALL Java_org_citra_emu_NativeLibrary_DoFrame(JNIEnv* env,
     // game restart, because the new Java callback can run before the new
     // NativeLibrary.Run thread clears s_stop_running.
     if (!s_render_window) {
-        if (doframe_debug_logs < 6) {
-            LOG_INFO(Frontend, "DoFrame keepalive before render window creation");
-            ++doframe_debug_logs;
-        }
         return JNI_TRUE;
     }
     if (s_stop_running) {
         return JNI_FALSE;
     }
     if (!Settings::values.use_present_thread) {
-        if (doframe_debug_logs < 6) {
-            LOG_INFO(Frontend, "DoFrame stopping callback loop because use_present_thread=false");
-            ++doframe_debug_logs;
-        }
         return JNI_FALSE;
     }
     // Keep the Choreographer loop alive during boot and pause. The shared-context
@@ -509,10 +500,6 @@ JNIEXPORT jboolean JNICALL Java_org_citra_emu_NativeLibrary_DoFrame(JNIEnv* env,
     // the steady-state RunLoop.
     if (s_is_running && s_render_window) {
         s_render_window->TryPresenting();
-        if (doframe_debug_logs < 6) {
-            LOG_INFO(Frontend, "DoFrame drove TryPresenting (running={})", s_is_running);
-            ++doframe_debug_logs;
-        }
     }
     return JNI_TRUE;
 }
