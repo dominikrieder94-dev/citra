@@ -5,9 +5,11 @@ import android.app.Activity;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Rect;
+import android.os.Build;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Process;
 import android.view.Choreographer;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -44,6 +46,7 @@ import static android.os.Looper.getMainLooper;
 
 public final class EmulationFragment extends Fragment implements SurfaceHolder.Callback, Choreographer.FrameCallback {
     private static final String KEY_GAMEPATH = "gamepath";
+    private static final float EMULATION_SURFACE_FRAME_RATE = 60.0f;
 
     private static final int TASK_PROGRESS_BAIDUOCR0 = 0;
     private static final int TASK_PROGRESS_BAIDUOCR1 = 1;
@@ -222,6 +225,7 @@ public final class EmulationFragment extends Fragment implements SurfaceHolder.C
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
         mSurface = holder.getSurface();
+        requestSurfaceFrameRate(mSurface);
         android.util.Log.i("citra", "surfaceChanged format=" + format + " size=" + width + "x" + height + " state=" + mState + " runWhenSurfaceIsValid=" + mRunWhenSurfaceIsValid);
         if (mRunWhenSurfaceIsValid) {
             runWithValidSurface();
@@ -230,8 +234,9 @@ public final class EmulationFragment extends Fragment implements SurfaceHolder.C
 
     @Override
     public void doFrame(long frameTimeNanos) {
-        Choreographer.getInstance().postFrameCallback(this);
-        NativeLibrary.DoFrame();
+        if (NativeLibrary.DoFrame()) {
+            Choreographer.getInstance().postFrameCallback(this);
+        }
     }
 
     @Override
@@ -239,6 +244,7 @@ public final class EmulationFragment extends Fragment implements SurfaceHolder.C
         if (mSurface == null) {
             // [EmulationFragment] clearSurface called, but surface already null.
         } else {
+            clearSurfaceFrameRate(mSurface);
             android.util.Log.i("citra", "surfaceDestroyed state=" + mState);
             mSurface = null;
             if (mState == EmulationState.RUNNING) {
@@ -323,6 +329,27 @@ public final class EmulationFragment extends Fragment implements SurfaceHolder.C
             mChatEditText.requestFocus();
             imm.showSoftInput(mChatEditText, InputMethod.SHOW_FORCED);
         }
+    }
+
+    private void requestSurfaceFrameRate(Surface surface) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R || surface == null || !surface.isValid()) {
+            return;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            surface.setFrameRate(EMULATION_SURFACE_FRAME_RATE,
+                    Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE,
+                    Surface.CHANGE_FRAME_RATE_ALWAYS);
+        } else {
+            surface.setFrameRate(EMULATION_SURFACE_FRAME_RATE,
+                    Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE);
+        }
+    }
+
+    private void clearSurfaceFrameRate(Surface surface) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R || surface == null || !surface.isValid()) {
+            return;
+        }
+        surface.setFrameRate(0.0f, Surface.FRAME_RATE_COMPATIBILITY_DEFAULT);
     }
 
     public void startConfiguringControls() {
@@ -416,6 +443,12 @@ public final class EmulationFragment extends Fragment implements SurfaceHolder.C
         if (mState == EmulationState.STOPPED) {
             NativeLibrary.SurfaceChanged(mSurface);
             new Thread(() -> {
+                try {
+                    Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_DISPLAY);
+                } catch (IllegalArgumentException | SecurityException e) {
+                    android.util.Log.w("citra",
+                            "Failed to raise NativeEmulation thread priority", e);
+                }
                 android.util.Log.i("citra", "NativeEmulation thread entering NativeLibrary.Run");
                 NativeLibrary.Run(mPath);
                 android.util.Log.i("citra", "NativeEmulation thread returned from NativeLibrary.Run");

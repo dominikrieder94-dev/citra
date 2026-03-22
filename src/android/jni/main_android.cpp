@@ -1,8 +1,14 @@
 
+#include <algorithm>
+#include <fstream>
+#include <limits>
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
+#include <optional>
+#include <sched.h>
 #include <string>
+#include <vector>
 
 #include <android/native_window_jni.h>
 
@@ -44,6 +50,74 @@ static std::mutex s_running_mutex;
 static std::condition_variable s_running_cv;
 static std::unique_ptr<EGLAndroid> s_render_window;
 static std::shared_ptr<AndroidKeyboard> s_keyboard;
+
+namespace {
+
+constexpr int kMaxAndroidCpuCount = 32;
+
+std::optional<int> ReadAndroidCpuMaxFrequencyKhz(int cpu_index) {
+    std::ifstream stream{"/sys/devices/system/cpu/cpu" + std::to_string(cpu_index) +
+                         "/cpufreq/cpuinfo_max_freq"};
+    int max_frequency_khz = 0;
+    if (!(stream >> max_frequency_khz) || max_frequency_khz <= 0) {
+        return std::nullopt;
+    }
+    return max_frequency_khz;
+}
+
+void PinCurrentThreadToPerformanceCores() {
+    std::vector<std::pair<int, int>> cpu_max_frequencies;
+    int min_frequency_khz = std::numeric_limits<int>::max();
+    int max_frequency_khz = 0;
+
+    for (int cpu_index = 0; cpu_index < kMaxAndroidCpuCount; ++cpu_index) {
+        const auto max_frequency = ReadAndroidCpuMaxFrequencyKhz(cpu_index);
+        if (!max_frequency) {
+            continue;
+        }
+
+        cpu_max_frequencies.emplace_back(cpu_index, *max_frequency);
+        min_frequency_khz = std::min(min_frequency_khz, *max_frequency);
+        max_frequency_khz = std::max(max_frequency_khz, *max_frequency);
+    }
+
+    if (cpu_max_frequencies.empty() || min_frequency_khz == max_frequency_khz) {
+        return;
+    }
+
+    cpu_set_t performance_cores;
+    CPU_ZERO(&performance_cores);
+
+    std::string selected_cpus;
+    int selected_count = 0;
+    for (const auto& [cpu_index, max_frequency] : cpu_max_frequencies) {
+        if (max_frequency <= min_frequency_khz) {
+            continue;
+        }
+
+        CPU_SET(cpu_index, &performance_cores);
+        if (!selected_cpus.empty()) {
+            selected_cpus += ",";
+        }
+        selected_cpus += std::to_string(cpu_index);
+        ++selected_count;
+    }
+
+    if (selected_count == 0) {
+        return;
+    }
+
+    if (sched_setaffinity(0, sizeof(performance_cores), &performance_cores) != 0) {
+        LOG_WARNING(Frontend, "Failed to pin emulation thread to performance cores");
+        return;
+    }
+
+    LOG_INFO(Frontend,
+             "Pinned Android emulation thread to non-little cores [{}] (min={} kHz max={} kHz)",
+             selected_cpus, min_frequency_khz, max_frequency_khz);
+}
+
+} // namespace
 
 static std::string GetAndroidAudioOutputSink(u8 output_type) {
     switch (output_type) {
@@ -404,11 +478,43 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_WindowChanged(JNIEnv* en
     }
 }
 
-JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_DoFrame(JNIEnv* env, jclass obj) {
-    if (!s_is_running || s_stop_running) {
-        return;
+JNIEXPORT jboolean JNICALL Java_org_citra_emu_NativeLibrary_DoFrame(JNIEnv* env, jclass obj) {
+    static int doframe_debug_logs = 0;
+    // Keep the Choreographer loop alive until the render window exists. Before
+    // NativeLibrary.Run loads config and BootGame creates EGLAndroid,
+    // use_present_thread is still at its default value and would otherwise stop
+    // the callback loop before shared-context presentation ever starts. This
+    // must also win over the previous session's stop flag during an in-process
+    // game restart, because the new Java callback can run before the new
+    // NativeLibrary.Run thread clears s_stop_running.
+    if (!s_render_window) {
+        if (doframe_debug_logs < 6) {
+            LOG_INFO(Frontend, "DoFrame keepalive before render window creation");
+            ++doframe_debug_logs;
+        }
+        return JNI_TRUE;
     }
-    s_render_window->TryPresenting();
+    if (s_stop_running) {
+        return JNI_FALSE;
+    }
+    if (!Settings::values.use_present_thread) {
+        if (doframe_debug_logs < 6) {
+            LOG_INFO(Frontend, "DoFrame stopping callback loop because use_present_thread=false");
+            ++doframe_debug_logs;
+        }
+        return JNI_FALSE;
+    }
+    // Keep the Choreographer loop alive during boot and pause. The shared-context
+    // presentation path still needs future callbacks even before emulation enters
+    // the steady-state RunLoop.
+    if (s_is_running && s_render_window) {
+        s_render_window->TryPresenting();
+        if (doframe_debug_logs < 6) {
+            LOG_INFO(Frontend, "DoFrame drove TryPresenting (running={})", s_is_running);
+            ++doframe_debug_logs;
+        }
+    }
+    return JNI_TRUE;
 }
 
 JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_HandleImage(JNIEnv* env, jclass obj,
@@ -479,6 +585,12 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_MoveEvent(JNIEnv* env, j
 JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_Run(JNIEnv* env, jclass obj,
                                                             jstring jFile) {
     NativeLibrary::Initialize(env);
+    // Starting a fresh game inside the same process must clear the previous
+    // session's stop flag before the first Choreographer callback runs, or the
+    // callback loop will kill itself again before BootGame recreates EGL state.
+    s_stop_running = false;
+    s_is_running = false;
+    PinCurrentThreadToPerformanceCores();
     // reload config
     Config::Clear();
     Config::Load();
@@ -521,10 +633,6 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_Run(JNIEnv* env, jclass 
     // debug
     Settings::values.shadow_rendering = Config::Get(Config::SHADOW_RENDERING);
     Settings::values.use_present_thread = Config::Get(Config::USE_PRESENT_THREAD);
-#ifdef ANDROID
-    // The Android renderer still requires the direct swap path in this tree.
-    Settings::values.use_present_thread = false;
-#endif
     Settings::values.core_downcount_hack = Config::Get(Config::CPU_USAGE_LIMIT);
     u8 shaderType = Config::Get(Config::SHADER_TYPE);
     if (shaderType == 0) {

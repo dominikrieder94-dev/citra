@@ -398,11 +398,7 @@ void RendererOpenGL::SwapBuffers() {
 
     RenderScreenshot();
 
-    bool use_present_thread = Settings::values.use_present_thread;
-#ifdef ANDROID
-    use_present_thread = false;
-#endif
-    if (use_present_thread) {
+    if (Settings::values.use_present_thread) {
         RenderToMailbox(layout);
     } else {
         // The accelerated display path can leave an offscreen FBO bound.
@@ -493,9 +489,11 @@ bool RendererOpenGL::TryPresent() {
 
     auto frame = mailbox->GetPresentFrame();
     const auto& layout = render_window.GetFramebufferLayout();
+    static int present_debug_logs = 0;
 
     // Clearing before a full overwrite of a fbo can signal to drivers that they can avoid a
     // readback since we won't be doing any blending
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
@@ -511,9 +509,22 @@ bool RendererOpenGL::TryPresent() {
     // glDeleteSync(frame.render_sync);
     // frame.render_sync = 0;
 
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glBindFramebuffer(GL_READ_FRAMEBUFFER, frame->present.handle);
     glBlitFramebuffer(0, 0, frame->width, frame->height, 0, 0, layout.width, layout.height,
                       GL_COLOR_BUFFER_BIT, GL_LINEAR);
+
+    if (present_debug_logs < 8) {
+        GLint draw_fbo = 0;
+        GLint read_fbo = 0;
+        glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &draw_fbo);
+        glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &read_fbo);
+        LOG_INFO(Render_OpenGL,
+                 "TryPresent frame={}x{} layout={}x{} draw_fbo={} read_fbo={} color_reloaded={}",
+                 frame->width, frame->height, layout.width, layout.height, draw_fbo, read_fbo,
+                 frame->color_reloaded);
+        ++present_debug_logs;
+    }
 
     /* insert fence for the main thread to block on */
     frame->present_fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);

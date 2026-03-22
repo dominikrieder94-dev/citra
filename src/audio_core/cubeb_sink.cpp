@@ -12,6 +12,27 @@
 
 namespace AudioCore {
 
+namespace {
+
+bool InitCubebContext(cubeb** ctx, const char* context_name) {
+#ifdef ANDROID
+    if (cubeb_init(ctx, context_name, "opensl") == CUBEB_OK) {
+        return true;
+    }
+    LOG_WARNING(Audio_Sink,
+                "Cubeb OpenSL init failed for '{}', falling back to default backend",
+                context_name);
+#endif
+    return cubeb_init(ctx, context_name, nullptr) == CUBEB_OK;
+}
+
+const char* GetCubebBackendName(cubeb* ctx) {
+    const char* backend = cubeb_get_backend_id(ctx);
+    return backend ? backend : "unknown";
+}
+
+} // namespace
+
 struct CubebSink::Impl {
     unsigned int sample_rate = 0;
 
@@ -27,11 +48,13 @@ struct CubebSink::Impl {
 };
 
 CubebSink::CubebSink(std::string_view target_device_name) : impl(std::make_unique<Impl>()) {
-    if (cubeb_init(&impl->ctx, "Citra Output", nullptr) != CUBEB_OK) {
+    if (!InitCubebContext(&impl->ctx, "Citra Output")) {
         LOG_CRITICAL(Audio_Sink, "cubeb_init failed");
         return;
     }
     cubeb_set_log_callback(CUBEB_LOG_NORMAL, &Impl::LogCallback);
+    [[maybe_unused]] const char* output_backend = GetCubebBackendName(impl->ctx);
+    LOG_INFO(Audio_Sink, "Cubeb output backend: {}", output_backend);
 
     impl->sample_rate = native_sample_rate;
 
@@ -166,10 +189,12 @@ std::vector<std::string> ListCubebSinkDevices() {
     std::vector<std::string> device_list;
     cubeb* ctx;
 
-    if (cubeb_init(&ctx, "CitraEnumerator", nullptr) != CUBEB_OK) {
+    if (!InitCubebContext(&ctx, "CitraEnumerator")) {
         LOG_CRITICAL(Audio_Sink, "cubeb_init failed");
         return {};
     }
+    [[maybe_unused]] const char* enumerator_backend = GetCubebBackendName(ctx);
+    LOG_INFO(Audio_Sink, "Cubeb enumerator backend: {}", enumerator_backend);
 
     cubeb_device_collection collection;
     if (cubeb_enumerate_devices(ctx, CUBEB_DEVICE_TYPE_OUTPUT, &collection) != CUBEB_OK) {
