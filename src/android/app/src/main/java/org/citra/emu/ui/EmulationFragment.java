@@ -444,7 +444,7 @@ public final class EmulationFragment extends Fragment implements SurfaceHolder.C
             NativeLibrary.SurfaceChanged(mSurface);
             new Thread(() -> {
                 try {
-                    Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_DISPLAY);
+                    Process.setThreadPriority(Process.THREAD_PRIORITY_DISPLAY);
                 } catch (IllegalArgumentException | SecurityException e) {
                     android.util.Log.w("citra",
                             "Failed to raise NativeEmulation thread priority", e);

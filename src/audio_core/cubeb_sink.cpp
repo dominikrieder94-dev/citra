@@ -15,14 +15,6 @@ namespace AudioCore {
 namespace {
 
 bool InitCubebContext(cubeb** ctx, const char* context_name) {
-#ifdef ANDROID
-    if (cubeb_init(ctx, context_name, "opensl") == CUBEB_OK) {
-        return true;
-    }
-    LOG_WARNING(Audio_Sink,
-                "Cubeb OpenSL init failed for '{}', falling back to default backend",
-                context_name);
-#endif
     return cubeb_init(ctx, context_name, nullptr) == CUBEB_OK;
 }
 

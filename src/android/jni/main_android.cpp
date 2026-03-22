@@ -1,14 +1,7 @@
-
-#include <algorithm>
-#include <fstream>
-#include <limits>
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
-#include <optional>
-#include <sched.h>
 #include <string>
-#include <vector>
 
 #include <android/native_window_jni.h>
 
@@ -50,74 +43,6 @@ static std::mutex s_running_mutex;
 static std::condition_variable s_running_cv;
 static std::unique_ptr<EGLAndroid> s_render_window;
 static std::shared_ptr<AndroidKeyboard> s_keyboard;
-
-namespace {
-
-constexpr int kMaxAndroidCpuCount = 32;
-
-std::optional<int> ReadAndroidCpuMaxFrequencyKhz(int cpu_index) {
-    std::ifstream stream{"/sys/devices/system/cpu/cpu" + std::to_string(cpu_index) +
-                         "/cpufreq/cpuinfo_max_freq"};
-    int max_frequency_khz = 0;
-    if (!(stream >> max_frequency_khz) || max_frequency_khz <= 0) {
-        return std::nullopt;
-    }
-    return max_frequency_khz;
-}
-
-void PinCurrentThreadToPerformanceCores() {
-    std::vector<std::pair<int, int>> cpu_max_frequencies;
-    int min_frequency_khz = std::numeric_limits<int>::max();
-    int max_frequency_khz = 0;
-
-    for (int cpu_index = 0; cpu_index < kMaxAndroidCpuCount; ++cpu_index) {
-        const auto max_frequency = ReadAndroidCpuMaxFrequencyKhz(cpu_index);
-        if (!max_frequency) {
-            continue;
-        }
-
-        cpu_max_frequencies.emplace_back(cpu_index, *max_frequency);
-        min_frequency_khz = std::min(min_frequency_khz, *max_frequency);
-        max_frequency_khz = std::max(max_frequency_khz, *max_frequency);
-    }
-
-    if (cpu_max_frequencies.empty() || min_frequency_khz == max_frequency_khz) {
-        return;
-    }
-
-    cpu_set_t performance_cores;
-    CPU_ZERO(&performance_cores);
-
-    std::string selected_cpus;
-    int selected_count = 0;
-    for (const auto& [cpu_index, max_frequency] : cpu_max_frequencies) {
-        if (max_frequency <= min_frequency_khz) {
-            continue;
-        }
-
-        CPU_SET(cpu_index, &performance_cores);
-        if (!selected_cpus.empty()) {
-            selected_cpus += ",";
-        }
-        selected_cpus += std::to_string(cpu_index);
-        ++selected_count;
-    }
-
-    if (selected_count == 0) {
-        return;
-    }
-
-    if (sched_setaffinity(0, sizeof(performance_cores), &performance_cores) != 0) {
-        LOG_WARNING(Frontend, "Failed to pin emulation thread to performance cores");
-        return;
-    }
-
-    LOG_INFO(Frontend,
-             "Pinned Android emulation thread to non-little cores [{}] (min={} kHz max={} kHz)",
-             selected_cpus, min_frequency_khz, max_frequency_khz);
-}
-
-} // namespace
 
 static std::string GetAndroidAudioOutputSink(u8 output_type) {
     switch (output_type) {
@@ -577,7 +502,6 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_Run(JNIEnv* env, jclass 
     // callback loop will kill itself again before BootGame recreates EGL state.
     s_stop_running = false;
     s_is_running = false;
-    PinCurrentThreadToPerformanceCores();
     // reload config
     Config::Clear();
     Config::Load();
