@@ -28,8 +28,16 @@ public final class FileBrowserHelper {
     public static final int REQUEST_OPEN_DOCUMENT_TREE = 3;
     public static final int REQUEST_OPEN_DOCUMENT_GAMES = 4;
     public static final int REQUEST_OPEN_DOCUMENT_CIA = 5;
+    public static final int REQUEST_OPEN_DOCUMENT_TREE_ES_DE = 6;
+    public static final int REQUEST_OPEN_DIRECTORY_ES_DE = 7;
 
     public static void openDirectoryPicker(Activity activity) {
+        openDirectoryPicker(activity, REQUEST_OPEN_DIRECTORY,
+                Environment.getExternalStorageDirectory().getPath());
+    }
+
+    public static void openDirectoryPicker(Activity activity, int requestCode,
+                                           @Nullable String startPath) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             if (!Environment.isExternalStorageLegacy() && !PermissionsHandler.hasWriteAccess(activity)) {
                 openGameDocuments(activity, REQUEST_OPEN_DOCUMENT_GAMES);
@@ -45,8 +53,8 @@ public final class FileBrowserHelper {
         i.putExtra(FilePickerActivity.EXTRA_ALLOW_MULTIPLE, false);
         i.putExtra(FilePickerActivity.EXTRA_MODE, FilePickerActivity.MODE_DIR);
         i.putExtra(FilePickerActivity.EXTRA_START_PATH,
-                   Environment.getExternalStorageDirectory().getPath());
-        activity.startActivityForResult(i, REQUEST_OPEN_DIRECTORY);
+                   startPath != null ? startPath : Environment.getExternalStorageDirectory().getPath());
+        activity.startActivityForResult(i, requestCode);
     }
 
     public static void openFilePicker(Activity activity) {
@@ -96,6 +104,15 @@ public final class FileBrowserHelper {
     }
 
     public static void openDocumentTree(Activity activity, int requestCode) {
+        openDocumentTree(activity, requestCode, "ROMs/n3ds");
+    }
+
+    public static void openEsDeCustomSystemsTree(Activity activity, int requestCode) {
+        openDocumentTree(activity, requestCode, "ES-DE");
+    }
+
+    public static void openDocumentTree(Activity activity, int requestCode,
+                                        @Nullable String initialRelativePath) {
         Intent intent;
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             StorageManager storageManager = activity.getSystemService(StorageManager.class);
@@ -110,7 +127,7 @@ public final class FileBrowserHelper {
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
         intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-        Uri initialUri = buildPrimaryDocumentUri("ROMs/n3ds");
+        Uri initialUri = buildPrimaryDocumentUri(initialRelativePath);
         if (initialUri != null) {
             intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, initialUri);
         }

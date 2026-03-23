@@ -2,7 +2,9 @@ package org.citra.emu.settings;
 
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -16,7 +18,9 @@ import org.citra.emu.R;
 import org.citra.emu.settings.model.Setting;
 import org.citra.emu.settings.model.StringSetting;
 import org.citra.emu.utils.CitraDirectory;
+import org.citra.emu.utils.EsDeFrontendRegistration;
 import org.citra.emu.utils.FileBrowserHelper;
+import org.citra.emu.utils.PermissionsHandler;
 
 import java.io.File;
 
@@ -24,15 +28,19 @@ public final class SettingsActivity extends AppCompatActivity {
     private static final String FRAGMENT_TAG = "settings";
     private static final int REQUEST_CODE_STATES_DIRECTORY =
         FileBrowserHelper.REQUEST_OPEN_DIRECTORY;
+    private static final int REQUEST_CODE_ES_DE_DIRECTORY =
+        FileBrowserHelper.REQUEST_OPEN_DIRECTORY_ES_DE;
 
     private static final String KEY_SHOULD_SAVE = "should_save";
     private static final String KEY_MENU_TAG = "menu_tag";
     private static final String KEY_GAME_ID = "game_id";
     private static final String KEY_GAME_NAME = "game_name";
     private static final String KEY_PENDING_DIRECTORY_SETTING = "pending_directory_setting";
+    private static final String KEY_PENDING_ES_DE_REGISTRATION = "pending_es_de_registration";
 
     private Settings mSettings = new Settings();
     private boolean mShouldSave;
+    private boolean mPendingEsDeRegistration;
     private MenuTag mMenuTag;
     private String mGameId;
     private String mGameName;
@@ -68,6 +76,8 @@ public final class SettingsActivity extends AppCompatActivity {
             mGameName = savedInstanceState.getString(KEY_GAME_NAME);
             mPendingDirectorySettingKey =
                 savedInstanceState.getString(KEY_PENDING_DIRECTORY_SETTING);
+            mPendingEsDeRegistration =
+                savedInstanceState.getBoolean(KEY_PENDING_ES_DE_REGISTRATION);
         }
 
         if (!mGameName.isEmpty()) {
@@ -85,6 +95,7 @@ public final class SettingsActivity extends AppCompatActivity {
         outState.putString(KEY_GAME_ID, mGameId);
         outState.putString(KEY_GAME_NAME, mGameName);
         outState.putString(KEY_PENDING_DIRECTORY_SETTING, mPendingDirectorySettingKey);
+        outState.putBoolean(KEY_PENDING_ES_DE_REGISTRATION, mPendingEsDeRegistration);
     }
 
     @Override
@@ -107,6 +118,24 @@ public final class SettingsActivity extends AppCompatActivity {
                 setCustomStoragePath(mPendingDirectorySettingKey, path);
             }
             mPendingDirectorySettingKey = null;
+        } else if (requestCode == REQUEST_CODE_ES_DE_DIRECTORY) {
+            if (resultCode == RESULT_OK && data != null) {
+                String path = FileBrowserHelper.getSelectedDirectory(data);
+                if (path != null) {
+                    handleEsDeCustomSystemsPath(path);
+                }
+            } else {
+                mPendingEsDeRegistration = false;
+                mPendingDirectorySettingKey = null;
+                refreshSettingsList();
+            }
+        } else if (requestCode == FileBrowserHelper.REQUEST_OPEN_DOCUMENT_TREE_ES_DE) {
+            if (resultCode == RESULT_OK && data != null) {
+                handleEsDeCustomSystemsResult(data);
+            } else {
+                mPendingEsDeRegistration = false;
+                refreshSettingsList();
+            }
         }
     }
 
@@ -214,11 +243,25 @@ public final class SettingsActivity extends AppCompatActivity {
     }
 
     public void openStoragePathPicker(String settingKey) {
+        if (EsDeFrontendRegistration.KEY_ES_DE_CUSTOM_SYSTEMS_PATH.equals(settingKey)) {
+            mPendingDirectorySettingKey = settingKey;
+            FileBrowserHelper.openDirectoryPicker(
+                this, REQUEST_CODE_ES_DE_DIRECTORY,
+                EsDeFrontendRegistration.getDefaultFolderSummary());
+            return;
+        }
+
         mPendingDirectorySettingKey = settingKey;
         FileBrowserHelper.openDirectoryPicker(this);
     }
 
     public void setCustomStoragePath(String settingKey, String path) {
+        if (EsDeFrontendRegistration.KEY_ES_DE_CUSTOM_SYSTEMS_PATH.equals(settingKey)) {
+            EsDeFrontendRegistration.saveCustomSystemsPath(this, path);
+            refreshSettingsList();
+            return;
+        }
+
         StringSetting setting =
             new StringSetting(settingKey, Settings.SECTION_INI_CORE, path);
         putSetting(setting);
@@ -229,6 +272,146 @@ public final class SettingsActivity extends AppCompatActivity {
         }
         mShouldSave = true;
 
+        SettingsFragment fragment = getSettingsFragment();
+        if (fragment != null) {
+            fragment.showSettingsList(mSettings);
+        }
+    }
+
+    public void registerEsDeFrontend() {
+        String savedPath = EsDeFrontendRegistration.getSavedCustomSystemsPath(this);
+        if (savedPath != null && EsDeFrontendRegistration.canRegisterUsingDefaultPath(this)) {
+            try {
+                EsDeFrontendRegistration.registerUsingSelectedPath(this, savedPath);
+                Toast.makeText(this, R.string.es_de_registration_success, Toast.LENGTH_SHORT).show();
+                refreshSettingsList();
+                return;
+            } catch (Exception e) {
+                Log.w("citra", "Saved ES-DE folder path could not be reused, falling back",
+                      e);
+                EsDeFrontendRegistration.clearSavedCustomSystemsPath(this);
+                refreshSettingsList();
+            }
+        }
+
+        if (EsDeFrontendRegistration.canRegisterUsingDefaultPath(this)) {
+            try {
+                EsDeFrontendRegistration.registerUsingDefaultPath(this);
+                Toast.makeText(this, R.string.es_de_registration_success, Toast.LENGTH_SHORT).show();
+                refreshSettingsList();
+                return;
+            } catch (Exception e) {
+                Log.w("citra", "Default ES-DE path registration failed, trying persisted SAF path",
+                      e);
+            }
+        } else if (!PermissionsHandler.checkWritePermission(this)) {
+            return;
+        }
+
+        Uri savedUri = EsDeFrontendRegistration.getSavedCustomSystemsUri(this);
+        if (savedUri != null) {
+            try {
+                EsDeFrontendRegistration.register(this, savedUri);
+                Toast.makeText(this, R.string.es_de_registration_success, Toast.LENGTH_SHORT).show();
+                refreshSettingsList();
+                return;
+            } catch (Exception e) {
+                Log.w("citra", "Saved ES-DE folder could not be reused, asking user to pick it again",
+                      e);
+                EsDeFrontendRegistration.clearSavedCustomSystemsUri(this);
+                refreshSettingsList();
+            }
+        }
+
+        mPendingEsDeRegistration = true;
+        FileBrowserHelper.openEsDeCustomSystemsTree(this,
+                                                    FileBrowserHelper.REQUEST_OPEN_DOCUMENT_TREE_ES_DE);
+    }
+
+    public void selectEsDeCustomSystemsFolder() {
+        mPendingEsDeRegistration = false;
+        if (EsDeFrontendRegistration.canRegisterUsingDefaultPath(this)) {
+            FileBrowserHelper.openDirectoryPicker(
+                this, REQUEST_CODE_ES_DE_DIRECTORY,
+                EsDeFrontendRegistration.getDefaultFolderSummary());
+            return;
+        }
+
+        if (!PermissionsHandler.checkWritePermission(this)) {
+            return;
+        }
+
+        FileBrowserHelper.openDirectoryPicker(
+            this, REQUEST_CODE_ES_DE_DIRECTORY,
+            EsDeFrontendRegistration.getDefaultFolderSummary());
+    }
+
+    private void handleEsDeCustomSystemsResult(Intent data) {
+        Uri uri = data.getData();
+        if (uri == null) {
+            return;
+        }
+
+        final int takeFlags = (data.getFlags() &
+                               (Intent.FLAG_GRANT_READ_URI_PERMISSION |
+                                Intent.FLAG_GRANT_WRITE_URI_PERMISSION)) |
+                              Intent.FLAG_GRANT_READ_URI_PERMISSION |
+                              Intent.FLAG_GRANT_WRITE_URI_PERMISSION;
+
+        try {
+            getContentResolver().takePersistableUriPermission(uri, takeFlags);
+            EsDeFrontendRegistration.saveCustomSystemsUri(this, uri);
+
+            if (mPendingEsDeRegistration) {
+                EsDeFrontendRegistration.register(this, uri);
+                Toast.makeText(this, R.string.es_de_registration_success, Toast.LENGTH_SHORT)
+                    .show();
+            } else {
+                Toast.makeText(this, R.string.es_de_folder_saved, Toast.LENGTH_SHORT).show();
+            }
+        } catch (IllegalArgumentException e) {
+            Log.w("citra", "Invalid ES-DE folder selected: " + uri, e);
+            Toast.makeText(this, R.string.es_de_select_custom_systems_folder, Toast.LENGTH_LONG)
+                .show();
+            EsDeFrontendRegistration.clearSavedCustomSystemsUri(this);
+        } catch (Exception e) {
+            Log.e("citra", "Failed to update ES-DE registration", e);
+            Toast.makeText(this, R.string.es_de_registration_failed, Toast.LENGTH_LONG).show();
+            EsDeFrontendRegistration.clearSavedCustomSystemsUri(this);
+        } finally {
+            mPendingEsDeRegistration = false;
+            mPendingDirectorySettingKey = null;
+            refreshSettingsList();
+        }
+    }
+
+    private void handleEsDeCustomSystemsPath(String path) {
+        try {
+            EsDeFrontendRegistration.saveCustomSystemsPath(this, path);
+
+            if (mPendingEsDeRegistration) {
+                EsDeFrontendRegistration.registerUsingSelectedPath(this, path);
+                Toast.makeText(this, R.string.es_de_registration_success, Toast.LENGTH_SHORT)
+                    .show();
+            } else {
+                Toast.makeText(this, R.string.es_de_folder_saved, Toast.LENGTH_SHORT).show();
+            }
+        } catch (IllegalArgumentException e) {
+            Log.w("citra", "Invalid ES-DE folder selected: " + path, e);
+            Toast.makeText(this, R.string.es_de_select_custom_systems_folder, Toast.LENGTH_LONG)
+                .show();
+            EsDeFrontendRegistration.clearSavedCustomSystemsPath(this);
+        } catch (Exception e) {
+            Log.e("citra", "Failed to update ES-DE registration", e);
+            Toast.makeText(this, R.string.es_de_registration_failed, Toast.LENGTH_LONG).show();
+            EsDeFrontendRegistration.clearSavedCustomSystemsPath(this);
+        } finally {
+            mPendingEsDeRegistration = false;
+            refreshSettingsList();
+        }
+    }
+
+    private void refreshSettingsList() {
         SettingsFragment fragment = getSettingsFragment();
         if (fragment != null) {
             fragment.showSettingsList(mSettings);

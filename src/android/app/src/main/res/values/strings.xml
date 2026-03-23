@@ -147,6 +147,7 @@
     <string name="setting_header_core">System</string>
     <string name="setting_header_renderer">Renderer</string>
     <string name="setting_header_storage">Storage</string>
+    <string name="setting_header_frontend_integration">Frontend Integration</string>
     <string name="setting_header_audio">Audio</string>
     <string name="setting_header_camera">Camera</string>
     <string name="translate_settings">Translation</string>
@@ -167,6 +168,13 @@
     <string name="setting_sdmc_path_description">Root folder for emulated SD card data. Pick the SDMC root itself, the `Nintendo 3DS` folder, or a higher folder that already contains it. If no existing `Nintendo 3DS` folder is found, the selected folder is treated as a new SDMC root.</string>
     <string name="setting_states_path">Save States Folder</string>
     <string name="setting_states_path_description">Folder used for save states. Pick an existing states directory to reuse older save states, or clear the field to use the default app folder.</string>
+    <string name="setting_es_de_register">Register / Update ES-DE Frontend</string>
+    <string name="setting_es_de_register_description">Create or update the ES-DE XML entries needed for `Citra BJJ (Standalone)`. When all-files access is available, Citra writes directly to the standard `ES-DE/custom_systems` path and only falls back to folder selection if needed.</string>
+    <string name="setting_es_de_register_default_description">Default path: %1$s</string>
+    <string name="setting_es_de_register_ready_description">Saved folder: %1$s. Tap to create or update the ES-DE files for `Citra BJJ (Standalone)`.</string>
+    <string name="setting_es_de_custom_systems_folder">ES-DE custom_systems Folder</string>
+    <string name="setting_es_de_custom_systems_folder_description">Select the `ES-DE` folder or the `custom_systems` folder inside it. When all-files access is available, Citra uses the same in-app directory picker as the SDMC and save-state settings; otherwise it falls back to Android\'s system picker.</string>
+    <string name="setting_es_de_custom_systems_folder_summary">Saved folder: %1$s</string>
 
     <string name="show_fps">Show FPS</string>
     <string name="layout_option">Screen Layout</string>
@@ -240,6 +248,10 @@
     <string name="all_files_access_needed">Allow all files access so Citra can scan and use your ROM folders on modern Android.</string>
     <string name="camera_permission_needed">You need to allow take photos for the emulator to work.</string>
     <string name="record_permission_needed">You need to allow record audio for the emulator to work.</string>
+    <string name="es_de_select_custom_systems_folder">Please select the ES-DE folder or its custom_systems folder.</string>
+    <string name="es_de_folder_saved">ES-DE folder saved. Tap Register / Update to write the ES-DE files.</string>
+    <string name="es_de_registration_success">ES-DE registration updated.</string>
+    <string name="es_de_registration_failed">Failed to update the ES-DE registration.</string>
 
     <string name="camera_blank">Blank</string>
     <string name="camera_still_image">Still Image</string>

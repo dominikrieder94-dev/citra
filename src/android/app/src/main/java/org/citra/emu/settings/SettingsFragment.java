@@ -22,6 +22,7 @@ import java.util.Locale;
 import org.citra.emu.R;
 import org.citra.emu.settings.model.Setting;
 import org.citra.emu.settings.model.SettingSection;
+import org.citra.emu.settings.view.ActionSetting;
 import org.citra.emu.settings.view.CheckBoxSetting;
 import org.citra.emu.settings.view.EditorSetting;
 import org.citra.emu.settings.view.HeaderSetting;
@@ -31,6 +32,7 @@ import org.citra.emu.settings.view.SingleChoiceSetting;
 import org.citra.emu.settings.view.SliderSetting;
 import org.citra.emu.settings.view.StringSingleChoiceSetting;
 import org.citra.emu.utils.CitraDirectory;
+import org.citra.emu.utils.EsDeFrontendRegistration;
 
 public final class SettingsFragment extends Fragment {
     private static final String ARGUMENT_MENU_TAG = "menu_tag";
@@ -264,6 +266,23 @@ public final class SettingsFragment extends Fragment {
                 sdmcPath, R.string.setting_sdmc_path, R.string.setting_sdmc_path_description));
         sl.add(new EditorSetting(SettingsFile.KEY_STATES_PATH, Settings.SECTION_INI_CORE,
                 statesPath, R.string.setting_states_path, R.string.setting_states_path_description));
+        if (mGameID.isEmpty()) {
+            Setting esDeCustomSystemsPath = new org.citra.emu.settings.model.StringSetting(
+                EsDeFrontendRegistration.KEY_ES_DE_CUSTOM_SYSTEMS_PATH,
+                Settings.SECTION_INI_CORE,
+                EsDeFrontendRegistration.getFolderValue(mActivity));
+            sl.add(new HeaderSetting(null, null, R.string.setting_header_frontend_integration, 0));
+            sl.add(new ActionSetting(EsDeFrontendRegistration.ACTION_REGISTER_ES_DE_FRONTEND,
+                    R.string.setting_es_de_register,
+                    R.string.setting_es_de_register_description,
+                    EsDeFrontendRegistration.getRegistrationSummary(mActivity)));
+            sl.add(new EditorSetting(
+                    EsDeFrontendRegistration.KEY_ES_DE_CUSTOM_SYSTEMS_PATH,
+                    Settings.SECTION_INI_CORE,
+                    esDeCustomSystemsPath,
+                    R.string.setting_es_de_custom_systems_folder,
+                    R.string.setting_es_de_custom_systems_folder_description));
+        }
 
         // audio
         sl.add(new HeaderSetting(null, null, R.string.setting_header_audio, 0));

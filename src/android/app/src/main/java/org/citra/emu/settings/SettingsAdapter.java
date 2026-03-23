@@ -22,6 +22,7 @@ import org.citra.emu.settings.model.BooleanSetting;
 import org.citra.emu.settings.model.IntSetting;
 import org.citra.emu.settings.model.Setting;
 import org.citra.emu.settings.model.StringSetting;
+import org.citra.emu.settings.view.ActionSetting;
 import org.citra.emu.settings.view.CheckBoxSetting;
 import org.citra.emu.settings.view.EditorSetting;
 import org.citra.emu.settings.view.InputBindingSetting;
@@ -30,6 +31,7 @@ import org.citra.emu.settings.view.SingleChoiceSetting;
 import org.citra.emu.settings.view.SliderSetting;
 import org.citra.emu.settings.view.StringSingleChoiceSetting;
 import org.citra.emu.settings.view.SubmenuSetting;
+import org.citra.emu.settings.viewholder.ActionViewHolder;
 import org.citra.emu.settings.viewholder.CheckBoxSettingViewHolder;
 import org.citra.emu.settings.viewholder.EditorViewHolder;
 import org.citra.emu.settings.viewholder.HeaderViewHolder;
@@ -39,6 +41,7 @@ import org.citra.emu.settings.viewholder.SettingViewHolder;
 import org.citra.emu.settings.viewholder.SingleChoiceViewHolder;
 import org.citra.emu.settings.viewholder.SliderViewHolder;
 import org.citra.emu.settings.viewholder.SubmenuViewHolder;
+import org.citra.emu.utils.EsDeFrontendRegistration;
 import org.citra.emu.utils.PermissionsHandler;
 
 public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolder>
@@ -95,6 +98,10 @@ public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolde
         case SettingsItem.TYPE_EDITOR:
             view = inflater.inflate(R.layout.list_item_setting, parent, false);
             return new EditorViewHolder(view, this);
+
+        case SettingsItem.TYPE_ACTION:
+            view = inflater.inflate(R.layout.list_item_setting, parent, false);
+            return new ActionViewHolder(view, this);
 
         default:
             Log.e("citra", "[SettingsAdapter] Invalid view type: " + viewType);
@@ -268,6 +275,17 @@ public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolde
         dialog.show();
     }
 
+    public void onActionClick(ActionSetting item) {
+        if (EsDeFrontendRegistration.ACTION_REGISTER_ES_DE_FRONTEND.equals(item.getKey())) {
+            mActivity.registerEsDeFrontend();
+        } else if (EsDeFrontendRegistration.ACTION_PICK_ES_DE_CUSTOM_SYSTEMS_FOLDER.equals(
+                       item.getKey())) {
+            mActivity.selectEsDeCustomSystemsFolder();
+        } else {
+            Log.e("citra", "[SettingsAdapter] Unknown action key: " + item.getKey());
+        }
+    }
+
     @Override
     public void onClick(DialogInterface dialog, int which) {
         if (mClickedItem instanceof SingleChoiceSetting) {
@@ -429,6 +447,8 @@ public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolde
     }
 
     private boolean isStoragePathSetting(String key) {
-        return SettingsFile.KEY_STATES_PATH.equals(key) || SettingsFile.KEY_SDMC_PATH.equals(key);
+        return SettingsFile.KEY_STATES_PATH.equals(key) ||
+               SettingsFile.KEY_SDMC_PATH.equals(key) ||
+               EsDeFrontendRegistration.KEY_ES_DE_CUSTOM_SYSTEMS_PATH.equals(key);
     }
 }
