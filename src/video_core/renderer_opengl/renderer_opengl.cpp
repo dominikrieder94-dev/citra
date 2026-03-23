@@ -3,10 +3,15 @@
 // Refer to the license.txt file included.
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <cstdlib>
 #include <memory>
 #include <vector>
+#ifdef ANDROID
+#include <android/log.h>
+#endif
 #include <glad/glad.h>
 #include <queue>
 #include "common/bit_field.h"
@@ -30,6 +35,288 @@
 #include "video_core/video_core.h"
 
 namespace OpenGL {
+
+namespace {
+
+#ifdef ANDROID
+
+using PerfClock = std::chrono::steady_clock;
+constexpr u64 PERF_LOG_INTERVAL_NS = 5'000'000'000ULL;
+
+u64 PerfNowNs() {
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(
+               PerfClock::now().time_since_epoch())
+        .count();
+}
+
+double PerfNsToMs(u64 ns) {
+    return static_cast<double>(ns) / 1'000'000.0;
+}
+
+double BytesToMiB(u64 bytes) {
+    return static_cast<double>(bytes) / (1024.0 * 1024.0);
+}
+
+void UpdateAtomicMax(std::atomic<u64>& target, u64 value) {
+    u64 current = target.load(std::memory_order_relaxed);
+    while (current < value &&
+           !target.compare_exchange_weak(current, value, std::memory_order_relaxed,
+                                         std::memory_order_relaxed)) {
+    }
+}
+
+struct RendererPerfStats {
+    std::atomic<u64> last_log_ns{0};
+    std::atomic<u64> render_mailbox_calls{0};
+    std::atomic<u64> render_mailbox_total_ns{0};
+    std::atomic<u64> render_mailbox_max_ns{0};
+    std::atomic<u64> render_draw_total_ns{0};
+    std::atomic<u64> render_draw_max_ns{0};
+    std::atomic<u64> mailbox_wait_calls{0};
+    std::atomic<u64> mailbox_wait_total_ns{0};
+    std::atomic<u64> mailbox_wait_max_ns{0};
+    std::atomic<u64> mailbox_reuse_count{0};
+    std::atomic<u64> present_calls{0};
+    std::atomic<u64> present_empty{0};
+    std::atomic<u64> present_total_ns{0};
+    std::atomic<u64> present_max_ns{0};
+    std::atomic<u64> present_wait_total_ns{0};
+    std::atomic<u64> present_wait_max_ns{0};
+    std::atomic<u64> present_blit_total_ns{0};
+    std::atomic<u64> present_blit_max_ns{0};
+    std::atomic<u64> present_skip_count{0};
+    std::atomic<u64> reset_present_frames{0};
+    std::atomic<u64> render_frame_reload_count{0};
+    std::atomic<u64> render_frame_reload_bytes{0};
+    std::atomic<u64> present_frame_reload_count{0};
+    std::atomic<u64> framebuffer_reconfig_count{0};
+    std::atomic<u64> framebuffer_reconfig_bytes{0};
+    std::atomic<u64> accelerated_display_hits{0};
+    std::atomic<u64> cpu_upload_hits{0};
+    std::atomic<u64> cpu_upload_bytes{0};
+};
+
+RendererPerfStats g_renderer_perf_stats;
+
+void MaybeLogRendererPerf(u64 now_ns) {
+    u64 last_log_ns = g_renderer_perf_stats.last_log_ns.load(std::memory_order_relaxed);
+    if (last_log_ns != 0 && now_ns - last_log_ns < PERF_LOG_INTERVAL_NS) {
+        return;
+    }
+    if (!g_renderer_perf_stats.last_log_ns.compare_exchange_strong(last_log_ns, now_ns,
+                                                                   std::memory_order_relaxed,
+                                                                   std::memory_order_relaxed)) {
+        return;
+    }
+    if (last_log_ns == 0) {
+        return;
+    }
+
+    const auto render_mailbox_calls =
+        g_renderer_perf_stats.render_mailbox_calls.exchange(0, std::memory_order_relaxed);
+    const auto render_mailbox_total_ns =
+        g_renderer_perf_stats.render_mailbox_total_ns.exchange(0, std::memory_order_relaxed);
+    const auto render_mailbox_max_ns =
+        g_renderer_perf_stats.render_mailbox_max_ns.exchange(0, std::memory_order_relaxed);
+    const auto render_draw_total_ns =
+        g_renderer_perf_stats.render_draw_total_ns.exchange(0, std::memory_order_relaxed);
+    const auto render_draw_max_ns =
+        g_renderer_perf_stats.render_draw_max_ns.exchange(0, std::memory_order_relaxed);
+    const auto mailbox_wait_calls =
+        g_renderer_perf_stats.mailbox_wait_calls.exchange(0, std::memory_order_relaxed);
+    const auto mailbox_wait_total_ns =
+        g_renderer_perf_stats.mailbox_wait_total_ns.exchange(0, std::memory_order_relaxed);
+    const auto mailbox_wait_max_ns =
+        g_renderer_perf_stats.mailbox_wait_max_ns.exchange(0, std::memory_order_relaxed);
+    const auto mailbox_reuse_count =
+        g_renderer_perf_stats.mailbox_reuse_count.exchange(0, std::memory_order_relaxed);
+    const auto present_calls =
+        g_renderer_perf_stats.present_calls.exchange(0, std::memory_order_relaxed);
+    const auto present_empty =
+        g_renderer_perf_stats.present_empty.exchange(0, std::memory_order_relaxed);
+    const auto present_total_ns =
+        g_renderer_perf_stats.present_total_ns.exchange(0, std::memory_order_relaxed);
+    const auto present_max_ns =
+        g_renderer_perf_stats.present_max_ns.exchange(0, std::memory_order_relaxed);
+    const auto present_wait_total_ns =
+        g_renderer_perf_stats.present_wait_total_ns.exchange(0, std::memory_order_relaxed);
+    const auto present_wait_max_ns =
+        g_renderer_perf_stats.present_wait_max_ns.exchange(0, std::memory_order_relaxed);
+    const auto present_blit_total_ns =
+        g_renderer_perf_stats.present_blit_total_ns.exchange(0, std::memory_order_relaxed);
+    const auto present_blit_max_ns =
+        g_renderer_perf_stats.present_blit_max_ns.exchange(0, std::memory_order_relaxed);
+    const auto present_skip_count =
+        g_renderer_perf_stats.present_skip_count.exchange(0, std::memory_order_relaxed);
+    const auto reset_present_frames =
+        g_renderer_perf_stats.reset_present_frames.exchange(0, std::memory_order_relaxed);
+    const auto render_frame_reload_count =
+        g_renderer_perf_stats.render_frame_reload_count.exchange(0, std::memory_order_relaxed);
+    const auto render_frame_reload_bytes =
+        g_renderer_perf_stats.render_frame_reload_bytes.exchange(0, std::memory_order_relaxed);
+    const auto present_frame_reload_count =
+        g_renderer_perf_stats.present_frame_reload_count.exchange(0, std::memory_order_relaxed);
+    const auto framebuffer_reconfig_count =
+        g_renderer_perf_stats.framebuffer_reconfig_count.exchange(0, std::memory_order_relaxed);
+    const auto framebuffer_reconfig_bytes =
+        g_renderer_perf_stats.framebuffer_reconfig_bytes.exchange(0, std::memory_order_relaxed);
+    const auto accelerated_display_hits =
+        g_renderer_perf_stats.accelerated_display_hits.exchange(0, std::memory_order_relaxed);
+    const auto cpu_upload_hits =
+        g_renderer_perf_stats.cpu_upload_hits.exchange(0, std::memory_order_relaxed);
+    const auto cpu_upload_bytes =
+        g_renderer_perf_stats.cpu_upload_bytes.exchange(0, std::memory_order_relaxed);
+
+    if (render_mailbox_calls == 0 && present_calls == 0 && framebuffer_reconfig_count == 0 &&
+        accelerated_display_hits == 0 && cpu_upload_hits == 0) {
+        return;
+    }
+
+    const double avg_render_mailbox_ms =
+        render_mailbox_calls == 0 ? 0.0 : PerfNsToMs(render_mailbox_total_ns) / render_mailbox_calls;
+    const double avg_render_draw_ms =
+        render_mailbox_calls == 0 ? 0.0 : PerfNsToMs(render_draw_total_ns) / render_mailbox_calls;
+    const double avg_mailbox_wait_ms =
+        mailbox_wait_calls == 0 ? 0.0 : PerfNsToMs(mailbox_wait_total_ns) / mailbox_wait_calls;
+    const double avg_present_ms =
+        present_calls == 0 ? 0.0 : PerfNsToMs(present_total_ns) / present_calls;
+    const double avg_present_wait_ms =
+        present_calls == 0 ? 0.0 : PerfNsToMs(present_wait_total_ns) / present_calls;
+    const double avg_present_blit_ms =
+        present_calls == 0 ? 0.0 : PerfNsToMs(present_blit_total_ns) / present_calls;
+
+    __android_log_print(
+        ANDROID_LOG_INFO, "citra",
+        "[Perf][Renderer] window_ms=%.1f mailbox_calls=%llu avg_mailbox_ms=%.3f "
+        "max_mailbox_ms=%.3f avg_draw_ms=%.3f max_draw_ms=%.3f wait_calls=%llu "
+        "avg_wait_ms=%.3f max_wait_ms=%.3f reuses=%llu present_calls=%llu present_empty=%llu "
+        "avg_present_ms=%.3f max_present_ms=%.3f avg_wait_fence_ms=%.3f max_wait_fence_ms=%.3f "
+        "avg_blit_ms=%.3f max_blit_ms=%.3f skips=%llu reset_frames=%llu render_reloads=%llu "
+        "render_reload_mib=%.2f present_reloads=%llu fb_reconfigs=%llu fb_reconfig_mib=%.2f "
+        "accel_hits=%llu cpu_uploads=%llu cpu_upload_mib=%.2f",
+        PerfNsToMs(now_ns - last_log_ns),
+        static_cast<unsigned long long>(render_mailbox_calls), avg_render_mailbox_ms,
+        PerfNsToMs(render_mailbox_max_ns), avg_render_draw_ms, PerfNsToMs(render_draw_max_ns),
+        static_cast<unsigned long long>(mailbox_wait_calls), avg_mailbox_wait_ms,
+        PerfNsToMs(mailbox_wait_max_ns), static_cast<unsigned long long>(mailbox_reuse_count),
+        static_cast<unsigned long long>(present_calls),
+        static_cast<unsigned long long>(present_empty), avg_present_ms,
+        PerfNsToMs(present_max_ns), avg_present_wait_ms, PerfNsToMs(present_wait_max_ns),
+        avg_present_blit_ms, PerfNsToMs(present_blit_max_ns),
+        static_cast<unsigned long long>(present_skip_count),
+        static_cast<unsigned long long>(reset_present_frames),
+        static_cast<unsigned long long>(render_frame_reload_count),
+        BytesToMiB(render_frame_reload_bytes),
+        static_cast<unsigned long long>(present_frame_reload_count),
+        static_cast<unsigned long long>(framebuffer_reconfig_count),
+        BytesToMiB(framebuffer_reconfig_bytes),
+        static_cast<unsigned long long>(accelerated_display_hits),
+        static_cast<unsigned long long>(cpu_upload_hits), BytesToMiB(cpu_upload_bytes));
+}
+
+void RecordMailboxWait(u64 wait_ns, bool reused_frame) {
+    const auto now_ns = PerfNowNs();
+    g_renderer_perf_stats.mailbox_wait_calls.fetch_add(1, std::memory_order_relaxed);
+    g_renderer_perf_stats.mailbox_wait_total_ns.fetch_add(wait_ns, std::memory_order_relaxed);
+    UpdateAtomicMax(g_renderer_perf_stats.mailbox_wait_max_ns, wait_ns);
+    if (reused_frame) {
+        g_renderer_perf_stats.mailbox_reuse_count.fetch_add(1, std::memory_order_relaxed);
+    }
+    MaybeLogRendererPerf(now_ns);
+}
+
+void RecordPresentQueueSkip() {
+    g_renderer_perf_stats.present_skip_count.fetch_add(1, std::memory_order_relaxed);
+}
+
+void RecordResetPresentFrames(u64 released_frames) {
+    const auto now_ns = PerfNowNs();
+    g_renderer_perf_stats.reset_present_frames.fetch_add(released_frames, std::memory_order_relaxed);
+    MaybeLogRendererPerf(now_ns);
+}
+
+void RecordRenderFrameReload(u32 width, u32 height) {
+    const auto now_ns = PerfNowNs();
+    g_renderer_perf_stats.render_frame_reload_count.fetch_add(1, std::memory_order_relaxed);
+    g_renderer_perf_stats.render_frame_reload_bytes.fetch_add(
+        static_cast<u64>(width) * static_cast<u64>(height) * 4ULL, std::memory_order_relaxed);
+    MaybeLogRendererPerf(now_ns);
+}
+
+void RecordPresentFrameReload() {
+    const auto now_ns = PerfNowNs();
+    g_renderer_perf_stats.present_frame_reload_count.fetch_add(1, std::memory_order_relaxed);
+    MaybeLogRendererPerf(now_ns);
+}
+
+void RecordRenderToMailbox(u64 total_ns, u64 draw_ns) {
+    const auto now_ns = PerfNowNs();
+    g_renderer_perf_stats.render_mailbox_calls.fetch_add(1, std::memory_order_relaxed);
+    g_renderer_perf_stats.render_mailbox_total_ns.fetch_add(total_ns, std::memory_order_relaxed);
+    g_renderer_perf_stats.render_draw_total_ns.fetch_add(draw_ns, std::memory_order_relaxed);
+    UpdateAtomicMax(g_renderer_perf_stats.render_mailbox_max_ns, total_ns);
+    UpdateAtomicMax(g_renderer_perf_stats.render_draw_max_ns, draw_ns);
+    MaybeLogRendererPerf(now_ns);
+}
+
+void RecordTryPresentEmpty() {
+    const auto now_ns = PerfNowNs();
+    g_renderer_perf_stats.present_empty.fetch_add(1, std::memory_order_relaxed);
+    MaybeLogRendererPerf(now_ns);
+}
+
+void RecordTryPresent(u64 total_ns, u64 wait_ns, u64 blit_ns) {
+    const auto now_ns = PerfNowNs();
+    g_renderer_perf_stats.present_calls.fetch_add(1, std::memory_order_relaxed);
+    g_renderer_perf_stats.present_total_ns.fetch_add(total_ns, std::memory_order_relaxed);
+    g_renderer_perf_stats.present_wait_total_ns.fetch_add(wait_ns, std::memory_order_relaxed);
+    g_renderer_perf_stats.present_blit_total_ns.fetch_add(blit_ns, std::memory_order_relaxed);
+    UpdateAtomicMax(g_renderer_perf_stats.present_max_ns, total_ns);
+    UpdateAtomicMax(g_renderer_perf_stats.present_wait_max_ns, wait_ns);
+    UpdateAtomicMax(g_renderer_perf_stats.present_blit_max_ns, blit_ns);
+    MaybeLogRendererPerf(now_ns);
+}
+
+void RecordFramebufferReconfig(u32 width, u32 height, u32 bytes_per_pixel) {
+    const auto now_ns = PerfNowNs();
+    g_renderer_perf_stats.framebuffer_reconfig_count.fetch_add(1, std::memory_order_relaxed);
+    g_renderer_perf_stats.framebuffer_reconfig_bytes.fetch_add(
+        static_cast<u64>(width) * static_cast<u64>(height) * static_cast<u64>(bytes_per_pixel),
+        std::memory_order_relaxed);
+    MaybeLogRendererPerf(now_ns);
+}
+
+void RecordDisplayPath(bool accelerated, u64 upload_bytes) {
+    const auto now_ns = PerfNowNs();
+    if (accelerated) {
+        g_renderer_perf_stats.accelerated_display_hits.fetch_add(1, std::memory_order_relaxed);
+    } else {
+        g_renderer_perf_stats.cpu_upload_hits.fetch_add(1, std::memory_order_relaxed);
+        g_renderer_perf_stats.cpu_upload_bytes.fetch_add(upload_bytes, std::memory_order_relaxed);
+    }
+    MaybeLogRendererPerf(now_ns);
+}
+
+#else
+
+u64 PerfNowNs() {
+    return 0;
+}
+
+void RecordMailboxWait(u64, bool) {}
+void RecordPresentQueueSkip() {}
+void RecordResetPresentFrames(u64) {}
+void RecordRenderFrameReload(u32, u32) {}
+void RecordPresentFrameReload() {}
+void RecordRenderToMailbox(u64, u64) {}
+void RecordTryPresentEmpty() {}
+void RecordTryPresent(u64, u64, u64) {}
+void RecordFramebufferReconfig(u32, u32, u32) {}
+void RecordDisplayPath(bool, u64) {}
+
+#endif
+
+} // namespace
 
 // If the size of this is too small, it ends up creating a soft cap on FPS as the renderer will have
 // to wait on available presentation frames. There doesn't seem to be much of a downside to a larger
@@ -80,16 +367,19 @@ struct OGLTextureMailbox {
     void ResetPresent() {
         if (!present_queue.empty()) {
             std::scoped_lock lock(swap_chain_lock);
+            const auto released_frames = static_cast<u64>(present_queue.size());
             for (auto& frame : present_queue) {
                 free_queue.push(frame);
             }
             present_queue.clear();
+            RecordResetPresentFrames(released_frames);
         }
     }
 
     /// called in core thread
     /// Recreate the frame if the size of the window has changed
     void ReloadRenderFrame(OGLFrame* frame, u32 width, u32 height) {
+        RecordRenderFrameReload(width, height);
         // Recreate the color texture attachment
         frame->color.Release();
         frame->color.Create();
@@ -117,9 +407,11 @@ struct OGLTextureMailbox {
 
         // If theres no free frames, we will reuse the oldest render frame
         if (free_queue.empty()) {
+            const auto wait_start_ns = PerfNowNs();
             // wait for new entries in the present_queue
             free_cv.wait_for(lock, elapsed, [this] { return !free_queue.empty(); });
             if (free_queue.empty()) {
+                RecordMailboxWait(PerfNowNs() - wait_start_ns, true);
                 auto frame = present_queue.front();
                 present_queue.pop_front();
 
@@ -129,6 +421,7 @@ struct OGLTextureMailbox {
 
                 return frame;
             }
+            RecordMailboxWait(PerfNowNs() - wait_start_ns, false);
         }
 
         OGLFrame* frame = free_queue.front();
@@ -158,6 +451,7 @@ struct OGLTextureMailbox {
 
         if (present_queue.size() > 1) {
             // skip frame if pending present frames more than one
+            RecordPresentQueueSkip();
             free_queue.push(present_queue.front());
             present_queue.pop_front();
         }
@@ -173,6 +467,7 @@ struct OGLTextureMailbox {
     /// called in present thread
     /// Recreate the presentation FBO if the color attachment was changed
     void ReloadPresentFrame(OGLFrame* frame, u32 height, u32 width) {
+        RecordPresentFrameReload();
         frame->present.Release();
         frame->present.Create();
         GLint previous_draw_fbo{};
@@ -444,6 +739,7 @@ void RendererOpenGL::RenderScreenshot() {
 
 /// run in core thread
 void RendererOpenGL::RenderToMailbox(const Layout::FramebufferLayout& layout) {
+    const auto total_start_ns = PerfNowNs();
     OGLFrame* frame = mailbox->GetRenderFrame();
 
     // Clean up sync objects before drawing
@@ -467,7 +763,9 @@ void RendererOpenGL::RenderToMailbox(const Layout::FramebufferLayout& layout) {
     OpenGLState::BindDrawFramebuffer(frame->render.handle);
 
     // draw frame
+    const auto draw_start_ns = PerfNowNs();
     DrawScreens(layout);
+    const auto draw_ns = PerfNowNs() - draw_start_ns;
 
     // delete the draw fence if the frame wasn't presented
     if (frame->render_fence) {
@@ -478,15 +776,17 @@ void RendererOpenGL::RenderToMailbox(const Layout::FramebufferLayout& layout) {
     glFlush();
 
     mailbox->ReleaseRenderFrame(frame);
+    RecordRenderToMailbox(PerfNowNs() - total_start_ns, draw_ns);
 }
 
 /// run in present thread
 bool RendererOpenGL::TryPresent() {
     if (mailbox->IsPresentEmpty()) {
-        LOG_TRACE(Render_OpenGL, "mailbox no frame to present");
+        RecordTryPresentEmpty();
         return false;
     }
 
+    const auto total_start_ns = PerfNowNs();
     auto frame = mailbox->GetPresentFrame();
     const auto& layout = render_window.GetFramebufferLayout();
 
@@ -498,24 +798,28 @@ bool RendererOpenGL::TryPresent() {
 
     // Recreate the presentation FBO if the color attachment was changed
     if (frame->color_reloaded) {
-        LOG_DEBUG(Render_OpenGL, "Reloading present frame");
         mailbox->ReloadPresentFrame(frame, layout.width, layout.height);
     }
+    const auto wait_start_ns = PerfNowNs();
     glWaitSync(frame->render_fence, 0, GL_TIMEOUT_IGNORED);
+    const auto wait_ns = PerfNowNs() - wait_start_ns;
     // INTEL workaround.
     // Normally we could just delete the draw fence here, but due to driver bugs, we can just delete
     // it on the emulation thread without too much penalty
     // glDeleteSync(frame.render_sync);
     // frame.render_sync = 0;
 
+    const auto blit_start_ns = PerfNowNs();
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glBindFramebuffer(GL_READ_FRAMEBUFFER, frame->present.handle);
     glBlitFramebuffer(0, 0, frame->width, frame->height, 0, 0, layout.width, layout.height,
                       GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    const auto blit_ns = PerfNowNs() - blit_start_ns;
 
     /* insert fence for the main thread to block on */
     frame->present_fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
     glFlush();
+    RecordTryPresent(PerfNowNs() - total_start_ns, wait_ns, blit_ns);
 
     return true;
 }
@@ -615,6 +919,8 @@ void RendererOpenGL::LoadFBToScreenInfo(const GPU::Regs::FramebufferConfig& fram
 
     const bool accelerated = VideoCore::Rasterizer()->AccelerateDisplay(
         framebuffer, framebuffer_addr, static_cast<u32>(pixel_stride), screen_info);
+    RecordDisplayPath(accelerated, static_cast<u64>(framebuffer.stride) *
+                                       static_cast<u64>(framebuffer.height));
     if (!accelerated) {
         // Reset the screen info's display texture to its own permanent texture
         screen_info.display_texture = screen_info.texture.resource.handle;
@@ -790,6 +1096,7 @@ void RendererOpenGL::ConfigureFramebufferTexture(TextureInfo& texture,
                                                  const GPU::Regs::FramebufferConfig& framebuffer) {
     GPU::Regs::PixelFormat format = framebuffer.color_format;
     GLint internal_format;
+    u32 bytes_per_pixel = GPU::Regs::BytesPerPixel(format);
 
     texture.format = format;
     texture.width = framebuffer.width;
@@ -840,6 +1147,7 @@ void RendererOpenGL::ConfigureFramebufferTexture(TextureInfo& texture,
 
     glTexImage2D(GL_TEXTURE_2D, 0, internal_format, texture.width, texture.height, 0,
                  texture.gl_format, texture.gl_type, nullptr);
+    RecordFramebufferReconfig(texture.width, texture.height, bytes_per_pixel);
 
     OpenGLState::BindTexture2D(0, old_tex);
 }

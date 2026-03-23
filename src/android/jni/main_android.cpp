@@ -1,7 +1,12 @@
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <mutex>
 #include <string>
+
+#ifdef ANDROID
+#include <android/log.h>
+#endif
 
 #include <android/native_window_jni.h>
 
@@ -43,6 +48,158 @@ static std::mutex s_running_mutex;
 static std::condition_variable s_running_cv;
 static std::unique_ptr<EGLAndroid> s_render_window;
 static std::shared_ptr<AndroidKeyboard> s_keyboard;
+
+namespace {
+
+#ifdef ANDROID
+
+using PerfClock = std::chrono::steady_clock;
+constexpr u64 PERF_LOG_INTERVAL_NS = 5'000'000'000ULL;
+
+u64 PerfNowNs() {
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(
+               PerfClock::now().time_since_epoch())
+        .count();
+}
+
+double PerfNsToMs(u64 ns) {
+    return static_cast<double>(ns) / 1'000'000.0;
+}
+
+void UpdateAtomicMax(std::atomic<u64>& target, u64 value) {
+    u64 current = target.load(std::memory_order_relaxed);
+    while (current < value &&
+           !target.compare_exchange_weak(current, value, std::memory_order_relaxed,
+                                         std::memory_order_relaxed)) {
+    }
+}
+
+struct DoFramePerfStats {
+    std::atomic<u64> last_log_ns{0};
+    std::atomic<u64> calls{0};
+    std::atomic<u64> no_window{0};
+    std::atomic<u64> stopped{0};
+    std::atomic<u64> direct_path{0};
+    std::atomic<u64> paused{0};
+    std::atomic<u64> active_present{0};
+    std::atomic<u64> active_present_total_ns{0};
+    std::atomic<u64> active_present_max_ns{0};
+};
+
+DoFramePerfStats g_do_frame_perf_stats;
+
+void MaybeLogDoFramePerf(u64 now_ns) {
+    u64 last_log_ns = g_do_frame_perf_stats.last_log_ns.load(std::memory_order_relaxed);
+    if (last_log_ns != 0 && now_ns - last_log_ns < PERF_LOG_INTERVAL_NS) {
+        return;
+    }
+    if (!g_do_frame_perf_stats.last_log_ns.compare_exchange_strong(last_log_ns, now_ns,
+                                                                   std::memory_order_relaxed,
+                                                                   std::memory_order_relaxed)) {
+        return;
+    }
+    if (last_log_ns == 0) {
+        return;
+    }
+
+    const auto calls = g_do_frame_perf_stats.calls.exchange(0, std::memory_order_relaxed);
+    const auto no_window = g_do_frame_perf_stats.no_window.exchange(0, std::memory_order_relaxed);
+    const auto stopped = g_do_frame_perf_stats.stopped.exchange(0, std::memory_order_relaxed);
+    const auto direct_path =
+        g_do_frame_perf_stats.direct_path.exchange(0, std::memory_order_relaxed);
+    const auto paused = g_do_frame_perf_stats.paused.exchange(0, std::memory_order_relaxed);
+    const auto active_present =
+        g_do_frame_perf_stats.active_present.exchange(0, std::memory_order_relaxed);
+    const auto active_present_total_ns =
+        g_do_frame_perf_stats.active_present_total_ns.exchange(0, std::memory_order_relaxed);
+    const auto active_present_max_ns =
+        g_do_frame_perf_stats.active_present_max_ns.exchange(0, std::memory_order_relaxed);
+
+    if (calls == 0) {
+        return;
+    }
+
+    const double avg_present_ms =
+        active_present == 0 ? 0.0 : PerfNsToMs(active_present_total_ns) / active_present;
+
+    __android_log_print(ANDROID_LOG_INFO, "citra",
+                        "[Perf][DoFrame] window_ms=%.1f calls=%llu no_window=%llu stopped=%llu "
+                        "direct_off=%llu paused=%llu active=%llu avg_present_ms=%.3f "
+                        "max_present_ms=%.3f",
+                        PerfNsToMs(now_ns - last_log_ns), static_cast<unsigned long long>(calls),
+                        static_cast<unsigned long long>(no_window),
+                        static_cast<unsigned long long>(stopped),
+                        static_cast<unsigned long long>(direct_path),
+                        static_cast<unsigned long long>(paused),
+                        static_cast<unsigned long long>(active_present), avg_present_ms,
+                        PerfNsToMs(active_present_max_ns));
+}
+
+void RecordDoFrameNoWindow() {
+    const auto now_ns = PerfNowNs();
+    g_do_frame_perf_stats.calls.fetch_add(1, std::memory_order_relaxed);
+    g_do_frame_perf_stats.no_window.fetch_add(1, std::memory_order_relaxed);
+    MaybeLogDoFramePerf(now_ns);
+}
+
+void RecordDoFrameStopped() {
+    const auto now_ns = PerfNowNs();
+    g_do_frame_perf_stats.calls.fetch_add(1, std::memory_order_relaxed);
+    g_do_frame_perf_stats.stopped.fetch_add(1, std::memory_order_relaxed);
+    MaybeLogDoFramePerf(now_ns);
+}
+
+void RecordDoFrameDirectPath() {
+    const auto now_ns = PerfNowNs();
+    g_do_frame_perf_stats.calls.fetch_add(1, std::memory_order_relaxed);
+    g_do_frame_perf_stats.direct_path.fetch_add(1, std::memory_order_relaxed);
+    MaybeLogDoFramePerf(now_ns);
+}
+
+void RecordDoFramePaused() {
+    const auto now_ns = PerfNowNs();
+    g_do_frame_perf_stats.calls.fetch_add(1, std::memory_order_relaxed);
+    g_do_frame_perf_stats.paused.fetch_add(1, std::memory_order_relaxed);
+    MaybeLogDoFramePerf(now_ns);
+}
+
+void RecordDoFrameActivePresent(u64 elapsed_ns) {
+    const auto now_ns = PerfNowNs();
+    g_do_frame_perf_stats.calls.fetch_add(1, std::memory_order_relaxed);
+    g_do_frame_perf_stats.active_present.fetch_add(1, std::memory_order_relaxed);
+    g_do_frame_perf_stats.active_present_total_ns.fetch_add(elapsed_ns,
+                                                            std::memory_order_relaxed);
+    UpdateAtomicMax(g_do_frame_perf_stats.active_present_max_ns, elapsed_ns);
+    MaybeLogDoFramePerf(now_ns);
+}
+
+void LogAndroidRunConfig(const std::string& file_path) {
+    __android_log_print(
+        ANDROID_LOG_INFO, "citra",
+        "[Perf][RunConfig] file=%s present_thread=%d fence_sync=%d stream_buffer_hack=%d "
+        "use_gles=%d resolution_factor=%d frame_limit=%d accurate_mul=%d shadow_rendering=%d",
+        file_path.c_str(), static_cast<int>(Settings::values.use_present_thread),
+        static_cast<int>(Settings::values.use_fence_sync),
+        static_cast<int>(Settings::values.stream_buffer_hack),
+        static_cast<int>(Settings::values.use_gles),
+        static_cast<int>(Settings::values.resolution_factor),
+        static_cast<int>(Settings::values.frame_limit),
+        static_cast<int>(Settings::values.shaders_accurate_mul),
+        static_cast<int>(Settings::values.shadow_rendering));
+}
+
+#else
+
+void RecordDoFrameNoWindow() {}
+void RecordDoFrameStopped() {}
+void RecordDoFrameDirectPath() {}
+void RecordDoFramePaused() {}
+void RecordDoFrameActivePresent(u64) {}
+void LogAndroidRunConfig(const std::string&) {}
+
+#endif
+
+} // namespace
 
 static std::string GetAndroidAudioOutputSink(u8 output_type) {
     switch (output_type) {
@@ -412,21 +569,29 @@ JNIEXPORT jboolean JNICALL Java_org_citra_emu_NativeLibrary_DoFrame(JNIEnv* env,
     // game restart, because the new Java callback can run before the new
     // NativeLibrary.Run thread clears s_stop_running.
     if (!s_render_window) {
+        RecordDoFrameNoWindow();
         return JNI_TRUE;
     }
     if (s_stop_running) {
+        RecordDoFrameStopped();
         return JNI_FALSE;
     }
     if (!Settings::values.use_present_thread) {
+        RecordDoFrameDirectPath();
         return JNI_FALSE;
     }
     // Keep the Choreographer loop alive during boot and pause. The shared-context
     // presentation path still needs future callbacks even before emulation enters
     // the steady-state RunLoop.
     if (s_is_running && s_render_window) {
+        const auto start_ns = PerfNowNs();
         s_render_window->TryPresenting();
+        RecordDoFrameActivePresent(PerfNowNs() - start_ns);
+        return JNI_TRUE;
+    } else {
+        RecordDoFramePaused();
+        return JNI_TRUE;
     }
-    return JNI_TRUE;
 }
 
 JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_HandleImage(JNIEnv* env, jclass obj,
@@ -497,6 +662,7 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_MoveEvent(JNIEnv* env, j
 JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_Run(JNIEnv* env, jclass obj,
                                                             jstring jFile) {
     NativeLibrary::Initialize(env);
+    const std::string file_path = JniHelper::Unwrap(jFile);
     // Starting a fresh game inside the same process must clear the previous
     // session's stop flag before the first Choreographer callback runs, or the
     // callback loop will kill itself again before BootGame recreates EGL state.
@@ -580,6 +746,8 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_Run(JNIEnv* env, jclass 
     Settings::values.stream_buffer_hack = !Settings::values.use_present_thread;
     Settings::values.use_fence_sync = Config::Get(Config::USE_FENCE_SYNC);
 
+    LogAndroidRunConfig(file_path);
+
     // profile
     InputManager::GetInstance().Init();
 
@@ -600,7 +768,7 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_Run(JNIEnv* env, jclass 
     cfg->UpdateConfigNANDSavegame();
 
     // run
-    BootGame(JniHelper::Unwrap(jFile));
+    BootGame(file_path);
 
     // shotdown
     InputManager::GetInstance().Shutdown();

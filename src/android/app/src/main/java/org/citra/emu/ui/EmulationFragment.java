@@ -5,7 +5,6 @@ import android.app.Activity;
 import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Rect;
-import android.os.Build;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
@@ -46,7 +45,9 @@ import static android.os.Looper.getMainLooper;
 
 public final class EmulationFragment extends Fragment implements SurfaceHolder.Callback, Choreographer.FrameCallback {
     private static final String KEY_GAMEPATH = "gamepath";
-    private static final float EMULATION_SURFACE_FRAME_RATE = 60.0f;
+    private static final float HIGH_REFRESH_CALLBACK_THRESHOLD = 75.0f;
+    private static final long EMULATION_FRAME_INTERVAL_NS = 1_000_000_000L / 60L;
+    private static final long FRAME_CALLBACK_SLACK_NS = 1_000_000L;
 
     private static final int TASK_PROGRESS_BAIDUOCR0 = 0;
     private static final int TASK_PROGRESS_BAIDUOCR1 = 1;
@@ -54,8 +55,12 @@ public final class EmulationFragment extends Fragment implements SurfaceHolder.C
 
     private String mPath;
     private Surface mSurface;
+    private SurfaceView mSurfaceView;
     private EmulationState mState;
     private boolean mRunWhenSurfaceIsValid;
+    private boolean mFrameCallbackPosted;
+    private long mLastNativeDoFrameTimeNanos;
+    private float mDisplayRefreshRateHz;
     private InputOverlay mInputOverlay;
     private ResizeOverlay mResizeOverlayTop;
     private ResizeOverlay mResizeOverlayBottom;
@@ -96,8 +101,9 @@ public final class EmulationFragment extends Fragment implements SurfaceHolder.C
                              Bundle savedInstanceState) {
         View contents = inflater.inflate(R.layout.fragment_emulation, container, false);
 
-        SurfaceView surfaceView = contents.findViewById(R.id.surface_emulation);
-        surfaceView.getHolder().addCallback(this);
+        mSurfaceView = contents.findViewById(R.id.surface_emulation);
+        mSurfaceView.getHolder().addCallback(this);
+        updateFrameCallbackRefreshRate();
 
         mProgressBar = contents.findViewById(R.id.running_progress);
         mTranslateText = contents.findViewById(R.id.translate_text);
@@ -225,7 +231,7 @@ public final class EmulationFragment extends Fragment implements SurfaceHolder.C
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
         mSurface = holder.getSurface();
-        requestSurfaceFrameRate(mSurface);
+        updateFrameCallbackRefreshRate();
         android.util.Log.i("citra", "surfaceChanged format=" + format + " size=" + width + "x" + height + " state=" + mState + " runWhenSurfaceIsValid=" + mRunWhenSurfaceIsValid);
         if (mRunWhenSurfaceIsValid) {
             runWithValidSurface();
@@ -234,8 +240,16 @@ public final class EmulationFragment extends Fragment implements SurfaceHolder.C
 
     @Override
     public void doFrame(long frameTimeNanos) {
+        mFrameCallbackPosted = false;
+        if (shouldThrottleNativeDoFrame(frameTimeNanos)) {
+            postFrameCallbackNow();
+            return;
+        }
         if (NativeLibrary.DoFrame()) {
-            Choreographer.getInstance().postFrameCallback(this);
+            mLastNativeDoFrameTimeNanos = frameTimeNanos;
+            postFrameCallbackNow();
+        } else {
+            mLastNativeDoFrameTimeNanos = 0L;
         }
     }
 
@@ -244,7 +258,6 @@ public final class EmulationFragment extends Fragment implements SurfaceHolder.C
         if (mSurface == null) {
             // [EmulationFragment] clearSurface called, but surface already null.
         } else {
-            clearSurfaceFrameRate(mSurface);
             android.util.Log.i("citra", "surfaceDestroyed state=" + mState);
             mSurface = null;
             if (mState == EmulationState.RUNNING) {
@@ -265,7 +278,8 @@ public final class EmulationFragment extends Fragment implements SurfaceHolder.C
     public void onResume() {
         super.onResume();
         android.util.Log.i("citra", "EmulationFragment.onResume state=" + mState + " nativeRunning=" + NativeLibrary.IsRunning() + " hasSurface=" + (mSurface != null));
-        Choreographer.getInstance().postFrameCallback(this);
+        updateFrameCallbackRefreshRate();
+        postFrameCallbackNow();
 
         if (NativeLibrary.IsRunning()) {
             mState = EmulationState.PAUSED;
@@ -288,7 +302,8 @@ public final class EmulationFragment extends Fragment implements SurfaceHolder.C
             NativeLibrary.SurfaceDestroyed();
             NativeLibrary.PauseEmulation();
         }
-        Choreographer.getInstance().removeFrameCallback(this);
+        removeFrameCallback();
+        mLastNativeDoFrameTimeNanos = 0L;
         super.onPause();
     }
 
@@ -331,25 +346,48 @@ public final class EmulationFragment extends Fragment implements SurfaceHolder.C
         }
     }
 
-    private void requestSurfaceFrameRate(Surface surface) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R || surface == null || !surface.isValid()) {
+    private void updateFrameCallbackRefreshRate() {
+        if (mSurfaceView == null || mSurfaceView.getDisplay() == null) {
+            mDisplayRefreshRateHz = 0.0f;
             return;
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            surface.setFrameRate(EMULATION_SURFACE_FRAME_RATE,
-                    Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE,
-                    Surface.CHANGE_FRAME_RATE_ALWAYS);
-        } else {
-            surface.setFrameRate(EMULATION_SURFACE_FRAME_RATE,
-                    Surface.FRAME_RATE_COMPATIBILITY_FIXED_SOURCE);
-        }
+        mDisplayRefreshRateHz = mSurfaceView.getDisplay().getRefreshRate();
     }
 
-    private void clearSurfaceFrameRate(Surface surface) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R || surface == null || !surface.isValid()) {
+    private boolean shouldPaceFrameCallbacks() {
+        return mDisplayRefreshRateHz > HIGH_REFRESH_CALLBACK_THRESHOLD;
+    }
+
+    private boolean shouldThrottleNativeDoFrame(long frameTimeNanos) {
+        if (!shouldPaceFrameCallbacks() || !NativeLibrary.IsRunning()) {
+            return false;
+        }
+        if (mLastNativeDoFrameTimeNanos == 0L) {
+            return false;
+        }
+
+        // Keep the UI callback loop alive at display rate, but do not cross the JNI/native
+        // boundary again until roughly one 60 Hz emulation interval has elapsed. This is more
+        // stable than relying on millisecond-delayed Choreographer posts to land on every
+        // second vsync.
+        final long elapsedNs = Math.max(0L, frameTimeNanos - mLastNativeDoFrameTimeNanos);
+        return elapsedNs + FRAME_CALLBACK_SLACK_NS < EMULATION_FRAME_INTERVAL_NS;
+    }
+
+    private void postFrameCallbackNow() {
+        if (mFrameCallbackPosted) {
             return;
         }
-        surface.setFrameRate(0.0f, Surface.FRAME_RATE_COMPATIBILITY_DEFAULT);
+        Choreographer.getInstance().postFrameCallback(this);
+        mFrameCallbackPosted = true;
+    }
+
+    private void removeFrameCallback() {
+        if (!mFrameCallbackPosted) {
+            return;
+        }
+        Choreographer.getInstance().removeFrameCallback(this);
+        mFrameCallbackPosted = false;
     }
 
     public void startConfiguringControls() {
