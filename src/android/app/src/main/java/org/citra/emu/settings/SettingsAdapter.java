@@ -142,17 +142,7 @@ public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolde
         if (setting != null) {
             mActivity.putSetting(setting);
         }
-        if (SettingsFile.KEY_HYBRID_SIDE_COLUMN_LEFT.equals(item.getKey())) {
-            BooleanSetting landscapeSetting =
-                new BooleanSetting(SettingsFile.KEY_LANDSCAPE_HYBRID_SIDE_COLUMN_LEFT,
-                                   item.getSection(), checked);
-            mActivity.putSetting(landscapeSetting);
-        } else if (SettingsFile.KEY_HYBRID_SECONDARY_TOP.equals(item.getKey())) {
-            BooleanSetting landscapeSetting =
-                new BooleanSetting(SettingsFile.KEY_LANDSCAPE_HYBRID_SECONDARY_TOP,
-                                   item.getSection(), checked);
-            mActivity.putSetting(landscapeSetting);
-        }
+        mirrorLandscapeBooleanIfNeeded(item.getKey(), item.getSection(), checked);
         mActivity.setSettingChanged();
     }
 
@@ -278,6 +268,8 @@ public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolde
     public void onActionClick(ActionSetting item) {
         if (EsDeFrontendRegistration.ACTION_REGISTER_ES_DE_FRONTEND.equals(item.getKey())) {
             mActivity.registerEsDeFrontend();
+        } else if (SettingsActivity.ACTION_SCREEN_LAYOUT_TOP_AUTO_FIT.equals(item.getKey())) {
+            mActivity.applyLargeScreenTopAutoFit();
         } else if (EsDeFrontendRegistration.ACTION_PICK_ES_DE_CUSTOM_SYSTEMS_FOLDER.equals(
                        item.getKey())) {
             mActivity.selectEsDeCustomSystemsFolder();
@@ -310,8 +302,7 @@ public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolde
                     new IntSetting(SettingsFile.KEY_LANDSCAPE_LAYOUT_OPTION,
                                    scSetting.getSection(), value);
                 mActivity.putSetting(landscapeSetting);
-            } else {
-                //
+                mActivity.refreshSettingsList();
             }
 
             closeDialog();
@@ -342,12 +333,7 @@ public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolde
             if (setting != null) {
                 mActivity.putSetting(setting);
             }
-            if (SettingsFile.KEY_LARGE_SCREEN_PROPORTION.equals(sliderSetting.getKey())) {
-                IntSetting landscapeSetting =
-                    new IntSetting(SettingsFile.KEY_LANDSCAPE_LARGE_SCREEN_PROPORTION,
-                                   sliderSetting.getSection(), value);
-                mActivity.putSetting(landscapeSetting);
-            }
+            mirrorLandscapeIntIfNeeded(sliderSetting.getKey(), sliderSetting.getSection(), value);
 
             closeDialog();
         } else if (mClickedItem instanceof EditorSetting) {
@@ -450,5 +436,39 @@ public final class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolde
         return SettingsFile.KEY_STATES_PATH.equals(key) ||
                SettingsFile.KEY_SDMC_PATH.equals(key) ||
                EsDeFrontendRegistration.KEY_ES_DE_CUSTOM_SYSTEMS_PATH.equals(key);
+    }
+
+    private void mirrorLandscapeBooleanIfNeeded(String key, String section, boolean value) {
+        String landscapeKey = null;
+        if (SettingsFile.KEY_LARGE_SCREEN_SECONDARY_LEFT.equals(key)) {
+            landscapeKey = SettingsFile.KEY_LANDSCAPE_LARGE_SCREEN_SECONDARY_LEFT;
+        } else if (SettingsFile.KEY_LARGE_SCREEN_SECONDARY_TOP.equals(key)) {
+            landscapeKey = SettingsFile.KEY_LANDSCAPE_LARGE_SCREEN_SECONDARY_TOP;
+        } else if (SettingsFile.KEY_HYBRID_SIDE_COLUMN_LEFT.equals(key)) {
+            landscapeKey = SettingsFile.KEY_LANDSCAPE_HYBRID_SIDE_COLUMN_LEFT;
+        } else if (SettingsFile.KEY_HYBRID_SECONDARY_TOP.equals(key)) {
+            landscapeKey = SettingsFile.KEY_LANDSCAPE_HYBRID_SECONDARY_TOP;
+        }
+        if (landscapeKey != null) {
+            mActivity.putSetting(new BooleanSetting(landscapeKey, section, value));
+        }
+    }
+
+    private void mirrorLandscapeIntIfNeeded(String key, String section, int value) {
+        String landscapeKey = null;
+        if (SettingsFile.KEY_LARGE_SCREEN_PROPORTION.equals(key)) {
+            landscapeKey = SettingsFile.KEY_LANDSCAPE_LARGE_SCREEN_PROPORTION;
+        } else if (SettingsFile.KEY_LAYOUT_MARGIN_LEFT.equals(key)) {
+            landscapeKey = SettingsFile.KEY_LANDSCAPE_LAYOUT_MARGIN_LEFT;
+        } else if (SettingsFile.KEY_LAYOUT_MARGIN_TOP.equals(key)) {
+            landscapeKey = SettingsFile.KEY_LANDSCAPE_LAYOUT_MARGIN_TOP;
+        } else if (SettingsFile.KEY_LAYOUT_MARGIN_RIGHT.equals(key)) {
+            landscapeKey = SettingsFile.KEY_LANDSCAPE_LAYOUT_MARGIN_RIGHT;
+        } else if (SettingsFile.KEY_LAYOUT_MARGIN_BOTTOM.equals(key)) {
+            landscapeKey = SettingsFile.KEY_LANDSCAPE_LAYOUT_MARGIN_BOTTOM;
+        }
+        if (landscapeKey != null) {
+            mActivity.putSetting(new IntSetting(landscapeKey, section, value));
+        }
     }
 }

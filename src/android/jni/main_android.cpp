@@ -426,8 +426,16 @@ static void UpdateDisplayRotation() {
     if (NativeLibrary::IsPortrait()) {
         Settings::values.layout_option = Config::Get(Config::LAYOUT_OPTION);
         Settings::values.large_screen_proportion = Config::Get(Config::LARGE_SCREEN_PROPORTION);
+        Settings::values.large_screen_secondary_left =
+            Config::Get(Config::LARGE_SCREEN_SECONDARY_LEFT);
+        Settings::values.large_screen_secondary_top =
+            Config::Get(Config::LARGE_SCREEN_SECONDARY_TOP);
         Settings::values.hybrid_side_column_left = Config::Get(Config::HYBRID_SIDE_COLUMN_LEFT);
         Settings::values.hybrid_secondary_top = Config::Get(Config::HYBRID_SECONDARY_TOP);
+        Settings::values.layout_margin_left = Config::Get(Config::LAYOUT_MARGIN_LEFT);
+        Settings::values.layout_margin_top = Config::Get(Config::LAYOUT_MARGIN_TOP);
+        Settings::values.layout_margin_right = Config::Get(Config::LAYOUT_MARGIN_RIGHT);
+        Settings::values.layout_margin_bottom = Config::Get(Config::LAYOUT_MARGIN_BOTTOM);
         Settings::values.custom_top_left = Config::Get(Config::PORTRAIT_TOP_LEFT);
         Settings::values.custom_top_top = Config::Get(Config::PORTRAIT_TOP_TOP);
         Settings::values.custom_top_right = Config::Get(Config::PORTRAIT_TOP_RIGHT);
@@ -442,10 +450,18 @@ static void UpdateDisplayRotation() {
         Settings::values.layout_option = Config::Get(Config::LANDSCAPE_LAYOUT_OPTION);
         Settings::values.large_screen_proportion =
             Config::Get(Config::LANDSCAPE_LARGE_SCREEN_PROPORTION);
+        Settings::values.large_screen_secondary_left =
+            Config::Get(Config::LANDSCAPE_LARGE_SCREEN_SECONDARY_LEFT);
+        Settings::values.large_screen_secondary_top =
+            Config::Get(Config::LANDSCAPE_LARGE_SCREEN_SECONDARY_TOP);
         Settings::values.hybrid_side_column_left =
             Config::Get(Config::LANDSCAPE_HYBRID_SIDE_COLUMN_LEFT);
         Settings::values.hybrid_secondary_top =
             Config::Get(Config::LANDSCAPE_HYBRID_SECONDARY_TOP);
+        Settings::values.layout_margin_left = Config::Get(Config::LANDSCAPE_LAYOUT_MARGIN_LEFT);
+        Settings::values.layout_margin_top = Config::Get(Config::LANDSCAPE_LAYOUT_MARGIN_TOP);
+        Settings::values.layout_margin_right = Config::Get(Config::LANDSCAPE_LAYOUT_MARGIN_RIGHT);
+        Settings::values.layout_margin_bottom = Config::Get(Config::LANDSCAPE_LAYOUT_MARGIN_BOTTOM);
         Settings::values.custom_top_left = Config::Get(Config::LANDSCAPE_TOP_LEFT);
         Settings::values.custom_top_top = Config::Get(Config::LANDSCAPE_TOP_TOP);
         Settings::values.custom_top_right = Config::Get(Config::LANDSCAPE_TOP_RIGHT);
@@ -799,7 +815,7 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_nativeStopEmulation(JNIE
 JNIEXPORT jintArray JNICALL Java_org_citra_emu_NativeLibrary_getRunningSettings(JNIEnv* env,
                                                                                 jclass obj) {
     int i = 0;
-    int settings[17];
+    int settings[23];
 
     // get settings
     settings[i++] = Settings::values.core_ticks_hack > 0;
@@ -814,8 +830,14 @@ JNIEXPORT jintArray JNICALL Java_org_citra_emu_NativeLibrary_getRunningSettings(
     settings[i++] = std::min(std::max(Settings::values.resolution_factor - 1, 0), 3);
     settings[i++] = static_cast<int>(Settings::values.layout_option);
     settings[i++] = Settings::values.large_screen_proportion;
+    settings[i++] = Settings::values.large_screen_secondary_left;
+    settings[i++] = Settings::values.large_screen_secondary_top;
     settings[i++] = Settings::values.hybrid_side_column_left;
     settings[i++] = Settings::values.hybrid_secondary_top;
+    settings[i++] = Settings::values.layout_margin_left;
+    settings[i++] = Settings::values.layout_margin_top;
+    settings[i++] = Settings::values.layout_margin_right;
+    settings[i++] = Settings::values.layout_margin_bottom;
     settings[i++] = static_cast<int>(Settings::values.shaders_accurate_mul);
     settings[i++] = Settings::values.custom_layout;
     settings[i++] = Settings::values.frame_limit;
@@ -837,7 +859,22 @@ JNIEXPORT jint JNICALL Java_org_citra_emu_NativeLibrary_getLargeScreenTopAutoFit
     }
 
     return Layout::GetLargeFrameLayoutTopAndroidMaxFillProportion(
-        framebuffer_layout.width, framebuffer_layout.height, Settings::values.swap_screen);
+        framebuffer_layout.width, framebuffer_layout.height, Settings::values.swap_screen,
+        Settings::values.layout_margin_left, Settings::values.layout_margin_top,
+        Settings::values.layout_margin_right, Settings::values.layout_margin_bottom);
+}
+
+JNIEXPORT jint JNICALL
+Java_org_citra_emu_NativeLibrary_getLargeScreenTopAutoFitProportionForDimensions(
+    JNIEnv* env, jclass obj, jint width, jint height, jint margin_left, jint margin_top,
+    jint margin_right, jint margin_bottom) {
+    const auto safe_width = std::max(width, 0);
+    const auto safe_height = std::max(height, 0);
+    return Layout::GetLargeFrameLayoutTopAndroidMaxFillProportion(
+        static_cast<u32>(safe_width), static_cast<u32>(safe_height), Settings::values.swap_screen,
+        static_cast<u32>(std::max(margin_left, 0)), static_cast<u32>(std::max(margin_top, 0)),
+        static_cast<u32>(std::max(margin_right, 0)),
+        static_cast<u32>(std::max(margin_bottom, 0)));
 }
 
 JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_setRunningSettings(JNIEnv* env, jclass obj,
@@ -901,6 +938,24 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_setRunningSettings(JNIEn
                     Settings::values.large_screen_proportion);
     }
 
+    Settings::values.large_screen_secondary_left = settings[i++] > 0;
+    if (NativeLibrary::IsPortrait()) {
+        Config::Set(Config::LARGE_SCREEN_SECONDARY_LEFT,
+                    Settings::values.large_screen_secondary_left);
+    } else {
+        Config::Set(Config::LANDSCAPE_LARGE_SCREEN_SECONDARY_LEFT,
+                    Settings::values.large_screen_secondary_left);
+    }
+
+    Settings::values.large_screen_secondary_top = settings[i++] > 0;
+    if (NativeLibrary::IsPortrait()) {
+        Config::Set(Config::LARGE_SCREEN_SECONDARY_TOP,
+                    Settings::values.large_screen_secondary_top);
+    } else {
+        Config::Set(Config::LANDSCAPE_LARGE_SCREEN_SECONDARY_TOP,
+                    Settings::values.large_screen_secondary_top);
+    }
+
     // Hybrid side column placement
     Settings::values.hybrid_side_column_left = settings[i++] > 0;
     if (NativeLibrary::IsPortrait()) {
@@ -917,6 +972,42 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_setRunningSettings(JNIEn
     } else {
         Config::Set(Config::LANDSCAPE_HYBRID_SECONDARY_TOP,
                     Settings::values.hybrid_secondary_top);
+    }
+
+    Settings::values.layout_margin_left =
+        static_cast<u16>(std::clamp(settings[i++], 0, 1000));
+    if (NativeLibrary::IsPortrait()) {
+        Config::Set(Config::LAYOUT_MARGIN_LEFT, Settings::values.layout_margin_left);
+    } else {
+        Config::Set(Config::LANDSCAPE_LAYOUT_MARGIN_LEFT,
+                    Settings::values.layout_margin_left);
+    }
+
+    Settings::values.layout_margin_top =
+        static_cast<u16>(std::clamp(settings[i++], 0, 1000));
+    if (NativeLibrary::IsPortrait()) {
+        Config::Set(Config::LAYOUT_MARGIN_TOP, Settings::values.layout_margin_top);
+    } else {
+        Config::Set(Config::LANDSCAPE_LAYOUT_MARGIN_TOP,
+                    Settings::values.layout_margin_top);
+    }
+
+    Settings::values.layout_margin_right =
+        static_cast<u16>(std::clamp(settings[i++], 0, 1000));
+    if (NativeLibrary::IsPortrait()) {
+        Config::Set(Config::LAYOUT_MARGIN_RIGHT, Settings::values.layout_margin_right);
+    } else {
+        Config::Set(Config::LANDSCAPE_LAYOUT_MARGIN_RIGHT,
+                    Settings::values.layout_margin_right);
+    }
+
+    Settings::values.layout_margin_bottom =
+        static_cast<u16>(std::clamp(settings[i++], 0, 1000));
+    if (NativeLibrary::IsPortrait()) {
+        Config::Set(Config::LAYOUT_MARGIN_BOTTOM, Settings::values.layout_margin_bottom);
+    } else {
+        Config::Set(Config::LANDSCAPE_LAYOUT_MARGIN_BOTTOM,
+                    Settings::values.layout_margin_bottom);
     }
 
     // Accurate Mul

@@ -192,6 +192,14 @@ custom_bottom_bottom =
 # 0 (default): Top Screen is prominent, 1: Bottom Screen is prominent
 swap_screen =
 
+# When using Large Screen (Top Aligned), place the secondary screen to the left of the primary screen.
+# 0 (default): Secondary screen on the right, 1: Secondary screen on the left
+large_screen_secondary_left =
+
+# When using Large Screen (Top Aligned), align the secondary screen to the top edge of the primary screen.
+# 0: Align to the bottom edge, 1 (default): Align to the top edge
+large_screen_secondary_top =
+
 # When using Hybrid Screen, move the stacked side column to the left of the main screen.
 # 0 (default): Side column on the right, 1: Side column on the left
 hybrid_side_column_left =
@@ -199,6 +207,13 @@ hybrid_side_column_left =
 # When using Hybrid Screen, place the secondary screen above the duplicated main screen.
 # 0 (default): Secondary screen on the bottom, 1: Secondary screen on the top
 hybrid_secondary_top =
+
+# Minimum margins, in framebuffer pixels, for the automatic layouts.
+# If aspect-ratio fitting already produces a larger margin on a side, that larger margin is kept.
+layout_margin_left =
+layout_margin_top =
+layout_margin_right =
+layout_margin_bottom =
 
 # Toggle upright orientation, for book style games.
 # 0 (default): Off, 1: On

@@ -76,7 +76,9 @@ FramebufferLayout LargeFrameLayoutAndroid(u32 width, u32 height, bool is_swapped
  * @param scale_ratio secondary screen scale relative to the primary screen
  * @return Newly created FramebufferLayout object with top-aligned screen regions initialized
  */
-FramebufferLayout LargeFrameLayoutTop(u32 width, u32 height, bool is_swapped, float scale_ratio);
+FramebufferLayout LargeFrameLayoutTop(u32 width, u32 height, bool is_swapped, float scale_ratio,
+                                      bool secondary_left = false,
+                                      bool secondary_top = true);
 
 /**
  * Android-oriented top-aligned large-screen layout that keeps the primary screen at maximum
@@ -87,7 +89,10 @@ FramebufferLayout LargeFrameLayoutTop(u32 width, u32 height, bool is_swapped, fl
  * @param scale_ratio secondary screen scale relative to the primary screen
  * @return Newly created FramebufferLayout object with top-aligned screen regions initialized
  */
-FramebufferLayout LargeFrameLayoutTopAndroid(u32 width, u32 height, bool is_swapped, float scale_ratio);
+FramebufferLayout LargeFrameLayoutTopAndroid(u32 width, u32 height, bool is_swapped,
+                                             float scale_ratio,
+                                             bool secondary_left = false,
+                                             bool secondary_top = true);
 
 /**
  * Factory method for constructing a hybrid large-screen layout with a large primary screen, a
@@ -108,7 +113,9 @@ FramebufferLayout HybridFrameLayout(u32 width, u32 height, bool is_swapped,
  * @param is_swapped if true, the bottom screen will be the large display
  * @return Recommended secondary screen size as a percentage of the primary screen size
  */
-u16 GetLargeFrameLayoutTopAndroidMaxFillProportion(u32 width, u32 height, bool is_swapped);
+u16 GetLargeFrameLayoutTopAndroidMaxFillProportion(u32 width, u32 height, bool is_swapped,
+                                                   u32 min_left = 0, u32 min_top = 0,
+                                                   u32 min_right = 0, u32 min_bottom = 0);
 
 /**
  * Factory method for constructing a Frame with the Top screen and bottom

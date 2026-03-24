@@ -2,7 +2,9 @@
 // Licensed under GPLv2 or any later version
 // Refer to the license.txt file included.
 
+#include <algorithm>
 #include <cmath>
+#include <limits>
 #include <mutex>
 #include "core/3ds.h"
 #include "core/frontend/emu_window.h"
@@ -63,6 +65,97 @@ static bool IsWithinTouchscreen(const Layout::FramebufferLayout& layout, unsigne
     return (
         framebuffer_y >= layout.bottom_screen.top && framebuffer_y < layout.bottom_screen.bottom &&
         framebuffer_x >= layout.bottom_screen.left && framebuffer_x < layout.bottom_screen.right);
+}
+
+static Common::Rectangle<u32> GetLayoutBounds(const Layout::FramebufferLayout& layout) {
+    u32 left = std::numeric_limits<u32>::max();
+    u32 top = std::numeric_limits<u32>::max();
+    u32 right = 0;
+    u32 bottom = 0;
+
+    const auto accumulate = [&](const Common::Rectangle<u32>& rect) {
+        left = std::min(left, rect.left);
+        top = std::min(top, rect.top);
+        right = std::max(right, rect.right);
+        bottom = std::max(bottom, rect.bottom);
+    };
+
+    if (layout.top_screen_enabled) {
+        accumulate(layout.top_screen);
+    }
+    if (layout.bottom_screen_enabled) {
+        accumulate(layout.bottom_screen);
+    }
+    if (layout.additional_screen_enabled) {
+        accumulate(layout.additional_screen);
+    }
+
+    if (left == std::numeric_limits<u32>::max()) {
+        return {};
+    }
+    return {left, top, right, bottom};
+}
+
+static void ApplyMinimumMargins(Layout::FramebufferLayout& layout, u32 min_left, u32 min_top,
+                                u32 min_right, u32 min_bottom) {
+    const Common::Rectangle<u32> bounds = GetLayoutBounds(layout);
+    if (bounds.GetWidth() == 0 || bounds.GetHeight() == 0 || layout.width == 0 ||
+        layout.height == 0) {
+        return;
+    }
+
+    const u32 target_left = std::min(min_left, layout.width);
+    const u32 target_top = std::min(min_top, layout.height);
+    const u32 target_right = layout.width > min_right ? layout.width - min_right : target_left;
+    const u32 target_bottom = layout.height > min_bottom ? layout.height - min_bottom : target_top;
+
+    if (target_right <= target_left || target_bottom <= target_top) {
+        return;
+    }
+
+    const u32 available_width = target_right - target_left;
+    const u32 available_height = target_bottom - target_top;
+    float scale = 1.0f;
+    if (bounds.GetWidth() > available_width || bounds.GetHeight() > available_height) {
+        scale = std::min(static_cast<float>(available_width) / bounds.GetWidth(),
+                         static_cast<float>(available_height) / bounds.GetHeight());
+        if (scale <= 0.0f) {
+            return;
+        }
+    }
+
+    const u32 scaled_width =
+        std::max<u32>(1, static_cast<u32>(std::round(bounds.GetWidth() * scale)));
+    const u32 scaled_height =
+        std::max<u32>(1, static_cast<u32>(std::round(bounds.GetHeight() * scale)));
+    const u32 max_left = target_right > scaled_width ? target_right - scaled_width : target_left;
+    const u32 max_top = target_bottom > scaled_height ? target_bottom - scaled_height : target_top;
+    const u32 new_left =
+        std::clamp(bounds.left, target_left, std::max(target_left, max_left));
+    const u32 new_top =
+        std::clamp(bounds.top, target_top, std::max(target_top, max_top));
+
+    const auto transform = [&](Common::Rectangle<u32>& rect) {
+        const auto scaled_left =
+            new_left + static_cast<u32>(std::round((rect.left - bounds.left) * scale));
+        const auto scaled_top =
+            new_top + static_cast<u32>(std::round((rect.top - bounds.top) * scale));
+        const auto scaled_right =
+            new_left + static_cast<u32>(std::round((rect.right - bounds.left) * scale));
+        const auto scaled_bottom =
+            new_top + static_cast<u32>(std::round((rect.bottom - bounds.top) * scale));
+        rect = {scaled_left, scaled_top, scaled_right, scaled_bottom};
+    };
+
+    if (layout.top_screen_enabled) {
+        transform(layout.top_screen);
+    }
+    if (layout.bottom_screen_enabled) {
+        transform(layout.bottom_screen);
+    }
+    if (layout.additional_screen_enabled) {
+        transform(layout.additional_screen);
+    }
 }
 
 std::tuple<unsigned, unsigned> EmuWindow::ClipToTouchScreen(unsigned new_x, unsigned new_y) const {
@@ -129,12 +222,16 @@ void EmuWindow::UpdateFramebufferLayout(u32 width, u32 height) {
 #ifdef ANDROID
             layout = Layout::LargeFrameLayoutTopAndroid(
                 width, height, Settings::values.swap_screen,
-                Settings::values.large_screen_proportion / 100.0f);
+                Settings::values.large_screen_proportion / 100.0f,
+                Settings::values.large_screen_secondary_left,
+                Settings::values.large_screen_secondary_top);
             android_large_full_width = true;
 #else
             layout = Layout::LargeFrameLayoutTop(
                 width, height, Settings::values.swap_screen,
-                Settings::values.large_screen_proportion / 100.0f);
+                Settings::values.large_screen_proportion / 100.0f,
+                Settings::values.large_screen_secondary_left,
+                Settings::values.large_screen_secondary_top);
 #endif
             break;
         case Settings::LayoutOption::HybridScreen:
@@ -199,6 +296,14 @@ void EmuWindow::UpdateFramebufferLayout(u32 width, u32 height) {
                 translate_x(offset);
             }
         }
+        // The user-configured layout margins are an extra constraint layer on top of the legacy
+        // automatic layout behavior. Keep them independent from Android safe insets so that
+        // setting all four margins to 0 restores the pre-margin layout instead of still forcing
+        // hidden inset-driven padding.
+        ApplyMinimumMargins(layout, static_cast<u32>(Settings::values.layout_margin_left),
+                            static_cast<u32>(Settings::values.layout_margin_top),
+                            static_cast<u32>(Settings::values.layout_margin_right),
+                            static_cast<u32>(Settings::values.layout_margin_bottom));
 #endif
     }
     NotifyFramebufferLayoutChanged(layout);

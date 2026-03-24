@@ -70,8 +70,14 @@ void LogSettings() {
     LogSetting("Layout_LayoutOption", static_cast<int>(Settings::values.layout_option));
     LogSetting("Layout_SwapScreen", Settings::values.swap_screen);
     LogSetting("Layout_LargeScreenProportion", Settings::values.large_screen_proportion);
+    LogSetting("Layout_LargeScreenSecondaryLeft", Settings::values.large_screen_secondary_left);
+    LogSetting("Layout_LargeScreenSecondaryTop", Settings::values.large_screen_secondary_top);
     LogSetting("Layout_HybridSideColumnLeft", Settings::values.hybrid_side_column_left);
     LogSetting("Layout_HybridSecondaryTop", Settings::values.hybrid_secondary_top);
+    LogSetting("Layout_MarginLeft", Settings::values.layout_margin_left);
+    LogSetting("Layout_MarginTop", Settings::values.layout_margin_top);
+    LogSetting("Layout_MarginRight", Settings::values.layout_margin_right);
+    LogSetting("Layout_MarginBottom", Settings::values.layout_margin_bottom);
     LogSetting("Utility_CustomTextures", Settings::values.custom_textures);
     LogSetting("Audio_EnableDspLle", Settings::values.enable_dsp_lle);
     LogSetting("Audio_EnableDspLleMultithread", Settings::values.enable_dsp_lle_multithread);

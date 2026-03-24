@@ -38,6 +38,7 @@ public class RunningSettingDialog extends DialogFragment {
     public static final int MENU_SETTINGS = 1;
     public static final int MENU_MULTIPLAYER = 2;
     public static final int MENU_AMIIBO = 3;
+    public static final int MENU_SCREEN_LAYOUT = 4;
 
     private int mMenu;
     private TextView mTitle;
@@ -81,7 +82,7 @@ public class RunningSettingDialog extends DialogFragment {
     @Override
     public void onDismiss(DialogInterface dialog) {
         super.onDismiss(dialog);
-        if (mMenu == MENU_SETTINGS) {
+        if (mMenu == MENU_SETTINGS || mMenu == MENU_SCREEN_LAYOUT) {
             mAdapter.saveSettings();
         }
         if (mDismissListener != null) {
@@ -108,6 +109,9 @@ public class RunningSettingDialog extends DialogFragment {
         } else if (menu == MENU_SETTINGS) {
             mTitle.setText(R.string.preferences_settings);
             mAdapter.loadSettingsMenu();
+        } else if (menu == MENU_SCREEN_LAYOUT) {
+            mTitle.setText(R.string.setting_header_screen_layout);
+            mAdapter.loadScreenLayoutMenu();
         } else if (menu == MENU_MULTIPLAYER) {
             mTitle.setText(R.string.multiplayer);
             mAdapter.loadMultiplayerMenu();
@@ -129,11 +133,18 @@ public class RunningSettingDialog extends DialogFragment {
         public static final int SETTING_SCALE_FACTOR = 9;
         public static final int SETTING_SCREEN_LAYOUT = 10;
         public static final int SETTING_LARGE_SCREEN_PROPORTION = 11;
-        public static final int SETTING_HYBRID_SIDE_COLUMN_LEFT = 12;
-        public static final int SETTING_HYBRID_SECONDARY_TOP = 13;
-        public static final int SETTING_ACCURATE_MUL = 14;
-        public static final int SETTING_CUSTOM_LAYOUT = 15;
-        public static final int SETTING_FRAME_LIMIT = 16;
+        public static final int SETTING_LARGE_SCREEN_SECONDARY_LEFT = 12;
+        public static final int SETTING_LARGE_SCREEN_SECONDARY_TOP = 13;
+        public static final int SETTING_HYBRID_SIDE_COLUMN_LEFT = 14;
+        public static final int SETTING_HYBRID_SECONDARY_TOP = 15;
+        // Keep these indices aligned with NativeLibrary.getRunningSettings().
+        public static final int SETTING_LAYOUT_MARGIN_LEFT = 16;
+        public static final int SETTING_LAYOUT_MARGIN_TOP = 17;
+        public static final int SETTING_LAYOUT_MARGIN_RIGHT = 18;
+        public static final int SETTING_LAYOUT_MARGIN_BOTTOM = 19;
+        public static final int SETTING_ACCURATE_MUL = 20;
+        public static final int SETTING_CUSTOM_LAYOUT = 21;
+        public static final int SETTING_FRAME_LIMIT = 22;
 
         // pref
         public static final int SETTING_JOYSTICK_RELATIVE = 100;
@@ -324,6 +335,7 @@ public class RunningSettingDialog extends DialogFragment {
             final boolean checked = !mCheckBox.isChecked();
             mCheckBox.setChecked(checked);
             mItem.setValue(checked ? 1 : 0);
+            mAdapter.updateWorkingValue(mItem.getSetting(), mItem.getValue());
         }
     }
 
@@ -427,6 +439,8 @@ public class RunningSettingDialog extends DialogFragment {
                 } else {
                     mItem.setValue(0);
                 }
+                mAdapter.updateWorkingValue(mItem.getSetting(), mItem.getValue());
+                mAdapter.loadScreenLayoutMenu();
                 return;
             }
 
@@ -443,6 +457,7 @@ public class RunningSettingDialog extends DialogFragment {
             } else {
                 mItem.setValue(0);
             }
+            mAdapter.updateWorkingValue(mItem.getSetting(), mItem.getValue());
         }
 
         private void configureRadioButton(RadioButton button, int visibility, int textId) {
@@ -547,6 +562,14 @@ public class RunningSettingDialog extends DialogFragment {
                 mSeekBar.setMax(199);
                 mSeekBar.setProgress(clamp(item.getValue(), 1, 200) - 1);
                 break;
+            case SettingsItem.SETTING_LAYOUT_MARGIN_LEFT:
+            case SettingsItem.SETTING_LAYOUT_MARGIN_TOP:
+            case SettingsItem.SETTING_LAYOUT_MARGIN_RIGHT:
+            case SettingsItem.SETTING_LAYOUT_MARGIN_BOTTOM:
+                mQuickActionButton.setVisibility(View.GONE);
+                mSeekBar.setMax(500);
+                mSeekBar.setProgress(clamp(item.getValue(), 0, 500));
+                break;
             default:
                 mQuickActionButton.setVisibility(View.GONE);
                 mSeekBar.setMax(100);
@@ -565,8 +588,8 @@ public class RunningSettingDialog extends DialogFragment {
             }
 
             if (mItem.getSetting() == SettingsItem.SETTING_LARGE_SCREEN_PROPORTION) {
-                final int autoFitValue =
-                    clamp(NativeLibrary.getLargeScreenTopAutoFitProportion(), 25, 100);
+                final int autoFitValue = clamp(mAdapter.getLargeScreenTopAutoFitForCurrentDisplay(),
+                                               25, 100);
                 mSeekBar.setProgress(autoFitValue - 25);
             }
         }
@@ -590,11 +613,19 @@ public class RunningSettingDialog extends DialogFragment {
                 mItem.setValue(progress + 1);
                 mTextSettingValue.setText((progress + 1) + "%");
                 break;
+            case SettingsItem.SETTING_LAYOUT_MARGIN_LEFT:
+            case SettingsItem.SETTING_LAYOUT_MARGIN_TOP:
+            case SettingsItem.SETTING_LAYOUT_MARGIN_RIGHT:
+            case SettingsItem.SETTING_LAYOUT_MARGIN_BOTTOM:
+                mItem.setValue(progress);
+                mTextSettingValue.setText(progress + "px");
+                break;
             default:
                 mItem.setValue(progress);
                 mTextSettingValue.setText(String.valueOf(progress));
                 break;
             }
+            mAdapter.updateWorkingValue(mItem.getSetting(), mItem.getValue());
         }
 
         private int clamp(int value, int min, int max) {
@@ -638,11 +669,17 @@ public class RunningSettingDialog extends DialogFragment {
     }
 
     public class SettingsAdapter extends RecyclerView.Adapter<SettingViewHolder> {
+        private int[] mInitialRunningSettings;
         private int[] mRunningSettings;
+        private int mInitialUseHapticFeedback = Integer.MIN_VALUE;
         private int mUseHapticFeedback;
+        private int mInitialJoystickRelative = Integer.MIN_VALUE;
         private int mJoystickRelative;
+        private int mInitialHideInputOverlay = Integer.MIN_VALUE;
         private int mHideInputOverlay;
+        private int mInitialControllerScale = Integer.MIN_VALUE;
         private int mControllerScale;
+        private int mInitialControllerAlpha = Integer.MIN_VALUE;
         private int mControllerAlpha;
         private ArrayList<SettingsItem> mSettings;
 
@@ -687,32 +724,26 @@ public class RunningSettingDialog extends DialogFragment {
         }
 
         public void loadSettingsMenu() {
-            int i = 0;
-            mRunningSettings = NativeLibrary.getRunningSettings();
+            ensureWorkingStateLoaded();
             mSettings = new ArrayList<>();
 
             // pref settings
-            mUseHapticFeedback = InputOverlay.sUseHapticFeedback ? 1 : 0;
             mSettings.add(new SettingsItem(SettingsItem.SETTING_USE_HAPTIC_FEEDBACK,
                     R.string.use_haptic_feedback,
                     SettingsItem.TYPE_CHECKBOX, mUseHapticFeedback));
 
-            mJoystickRelative = InputOverlay.sJoystickRelative ? 1 : 0;
             mSettings.add(new SettingsItem(SettingsItem.SETTING_JOYSTICK_RELATIVE,
                     R.string.joystick_relative_center,
                     SettingsItem.TYPE_CHECKBOX, mJoystickRelative));
 
-            mHideInputOverlay = InputOverlay.sHideInputOverlay ? 1 : 0;
             mSettings.add(new SettingsItem(SettingsItem.SETTING_HIDE_INPUT_OVERLAY,
                     R.string.hide_input_overlay,
                     SettingsItem.TYPE_CHECKBOX, mHideInputOverlay));
 
-            mControllerScale = InputOverlay.sControllerScale;
             mSettings.add(new SettingsItem(SettingsItem.SETTING_CONTROLLER_SCALE,
                     R.string.controller_scale, SettingsItem.TYPE_SEEK_BAR,
                     mControllerScale));
 
-            mControllerAlpha = InputOverlay.sControllerAlpha;
             mSettings.add(new SettingsItem(SettingsItem.SETTING_CONTROLLER_ALPHA,
                     R.string.controller_alpha, SettingsItem.TYPE_SEEK_BAR,
                     mControllerAlpha));
@@ -720,48 +751,37 @@ public class RunningSettingDialog extends DialogFragment {
             // native settings
             mSettings.add(new SettingsItem(SettingsItem.SETTING_CORE_TICKS_HACK,
                     R.string.setting_core_ticks_hack,
-                    SettingsItem.TYPE_CHECKBOX, mRunningSettings[i++]));
+                    SettingsItem.TYPE_CHECKBOX, mRunningSettings[SettingsItem.SETTING_CORE_TICKS_HACK]));
             mSettings.add(new SettingsItem(SettingsItem.SETTING_SKIP_SLOW_DRAW,
                     R.string.setting_skip_slow_draw,
-                    SettingsItem.TYPE_CHECKBOX, mRunningSettings[i++]));
+                    SettingsItem.TYPE_CHECKBOX, mRunningSettings[SettingsItem.SETTING_SKIP_SLOW_DRAW]));
             mSettings.add(new SettingsItem(SettingsItem.SETTING_SKIP_CPU_WRITE,
                     R.string.setting_skip_cpu_write,
-                    SettingsItem.TYPE_CHECKBOX, mRunningSettings[i++]));
+                    SettingsItem.TYPE_CHECKBOX, mRunningSettings[SettingsItem.SETTING_SKIP_CPU_WRITE]));
             mSettings.add(new SettingsItem(SettingsItem.SETTING_SKIP_TEXTURE_COPY,
                     R.string.setting_skip_texture_copy,
-                    SettingsItem.TYPE_CHECKBOX, mRunningSettings[i++]));
+                    SettingsItem.TYPE_CHECKBOX, mRunningSettings[SettingsItem.SETTING_SKIP_TEXTURE_COPY]));
             mSettings.add(new SettingsItem(SettingsItem.SETTING_FORCE_TEXTURE_FILTER,
                     R.string.setting_force_texture_filter,
-                    SettingsItem.TYPE_RADIO_GROUP, mRunningSettings[i++]));
+                    SettingsItem.TYPE_RADIO_GROUP, mRunningSettings[SettingsItem.SETTING_FORCE_TEXTURE_FILTER]));
             mSettings.add(new SettingsItem(SettingsItem.SETTING_HW_GS_MODE,
                     R.string.setting_hw_gs_mode,
-                    SettingsItem.TYPE_RADIO_GROUP, mRunningSettings[i++]));
+                    SettingsItem.TYPE_RADIO_GROUP, mRunningSettings[SettingsItem.SETTING_HW_GS_MODE]));
             mSettings.add(new SettingsItem(SettingsItem.SETTING_SHADOW_RENDERING,
                     R.string.setting_shadow_rendering,
-                    SettingsItem.TYPE_CHECKBOX, mRunningSettings[i++]));
+                    SettingsItem.TYPE_CHECKBOX, mRunningSettings[SettingsItem.SETTING_SHADOW_RENDERING]));
             mSettings.add(new SettingsItem(SettingsItem.SETTING_ASYNC_SHADER_COMPILE,
                     R.string.setting_async_shader_compile,
-                    SettingsItem.TYPE_CHECKBOX, mRunningSettings[i++]));
+                    SettingsItem.TYPE_CHECKBOX, mRunningSettings[SettingsItem.SETTING_ASYNC_SHADER_COMPILE]));
             mSettings.add(new SettingsItem(SettingsItem.SETTING_USE_COMPATIBLE_MODE,
                     R.string.setting_use_compatible_mode,
-                    SettingsItem.TYPE_CHECKBOX, mRunningSettings[i++]));
+                    SettingsItem.TYPE_CHECKBOX, mRunningSettings[SettingsItem.SETTING_USE_COMPATIBLE_MODE]));
             mSettings.add(new SettingsItem(SettingsItem.SETTING_SCALE_FACTOR,
                     R.string.running_resolution, SettingsItem.TYPE_RADIO_GROUP,
                     mRunningSettings[SettingsItem.SETTING_SCALE_FACTOR]));
-            mSettings.add(new SettingsItem(SettingsItem.SETTING_SCREEN_LAYOUT,
-                    R.string.running_layout, SettingsItem.TYPE_RADIO_GROUP,
-                    mRunningSettings[SettingsItem.SETTING_SCREEN_LAYOUT]));
-            mSettings.add(new SettingsItem(SettingsItem.SETTING_LARGE_SCREEN_PROPORTION,
-                    R.string.running_large_screen_proportion, SettingsItem.TYPE_SEEK_BAR,
-                    mRunningSettings[SettingsItem.SETTING_LARGE_SCREEN_PROPORTION]));
-            if (mRunningSettings[SettingsItem.SETTING_SCREEN_LAYOUT] == 5) {
-                mSettings.add(new SettingsItem(SettingsItem.SETTING_HYBRID_SIDE_COLUMN_LEFT,
-                        R.string.hybrid_side_column_left, SettingsItem.TYPE_CHECKBOX,
-                        mRunningSettings[SettingsItem.SETTING_HYBRID_SIDE_COLUMN_LEFT]));
-                mSettings.add(new SettingsItem(SettingsItem.SETTING_HYBRID_SECONDARY_TOP,
-                        R.string.hybrid_secondary_top, SettingsItem.TYPE_CHECKBOX,
-                        mRunningSettings[SettingsItem.SETTING_HYBRID_SECONDARY_TOP]));
-            }
+            mSettings.add(new SettingsItem(SettingsItem.SETTING_LOAD_SUBMENU,
+                    R.string.setting_screen_layout_settings, SettingsItem.TYPE_TEXT,
+                    MENU_SCREEN_LAYOUT));
             mSettings.add(new SettingsItem(SettingsItem.SETTING_ACCURATE_MUL,
                     R.string.running_accurate_mul, SettingsItem.TYPE_RADIO_GROUP,
                     mRunningSettings[SettingsItem.SETTING_ACCURATE_MUL]));
@@ -771,6 +791,49 @@ public class RunningSettingDialog extends DialogFragment {
             mSettings.add(new SettingsItem(SettingsItem.SETTING_FRAME_LIMIT,
                     R.string.running_frame_limit,
                     SettingsItem.TYPE_SEEK_BAR, mRunningSettings[SettingsItem.SETTING_FRAME_LIMIT]));
+            notifyDataSetChanged();
+        }
+
+        public void loadScreenLayoutMenu() {
+            ensureWorkingStateLoaded();
+            mSettings = new ArrayList<>();
+            final int currentLayout = mRunningSettings[SettingsItem.SETTING_SCREEN_LAYOUT];
+
+            mSettings.add(new SettingsItem(SettingsItem.SETTING_SCREEN_LAYOUT,
+                    R.string.running_layout, SettingsItem.TYPE_RADIO_GROUP,
+                    currentLayout));
+
+            if (currentLayout == 4) {
+                mSettings.add(new SettingsItem(SettingsItem.SETTING_LARGE_SCREEN_PROPORTION,
+                        R.string.running_large_screen_proportion, SettingsItem.TYPE_SEEK_BAR,
+                        mRunningSettings[SettingsItem.SETTING_LARGE_SCREEN_PROPORTION]));
+                mSettings.add(new SettingsItem(SettingsItem.SETTING_LARGE_SCREEN_SECONDARY_LEFT,
+                        R.string.large_screen_secondary_left, SettingsItem.TYPE_CHECKBOX,
+                        mRunningSettings[SettingsItem.SETTING_LARGE_SCREEN_SECONDARY_LEFT]));
+                mSettings.add(new SettingsItem(SettingsItem.SETTING_LARGE_SCREEN_SECONDARY_TOP,
+                        R.string.large_screen_secondary_top, SettingsItem.TYPE_CHECKBOX,
+                        mRunningSettings[SettingsItem.SETTING_LARGE_SCREEN_SECONDARY_TOP]));
+            } else if (currentLayout == 5) {
+                mSettings.add(new SettingsItem(SettingsItem.SETTING_HYBRID_SIDE_COLUMN_LEFT,
+                        R.string.hybrid_side_column_left, SettingsItem.TYPE_CHECKBOX,
+                        mRunningSettings[SettingsItem.SETTING_HYBRID_SIDE_COLUMN_LEFT]));
+                mSettings.add(new SettingsItem(SettingsItem.SETTING_HYBRID_SECONDARY_TOP,
+                        R.string.hybrid_secondary_top, SettingsItem.TYPE_CHECKBOX,
+                        mRunningSettings[SettingsItem.SETTING_HYBRID_SECONDARY_TOP]));
+            }
+
+            mSettings.add(new SettingsItem(SettingsItem.SETTING_LAYOUT_MARGIN_LEFT,
+                    R.string.layout_margin_left, SettingsItem.TYPE_SEEK_BAR,
+                    mRunningSettings[SettingsItem.SETTING_LAYOUT_MARGIN_LEFT]));
+            mSettings.add(new SettingsItem(SettingsItem.SETTING_LAYOUT_MARGIN_TOP,
+                    R.string.layout_margin_top, SettingsItem.TYPE_SEEK_BAR,
+                    mRunningSettings[SettingsItem.SETTING_LAYOUT_MARGIN_TOP]));
+            mSettings.add(new SettingsItem(SettingsItem.SETTING_LAYOUT_MARGIN_RIGHT,
+                    R.string.layout_margin_right, SettingsItem.TYPE_SEEK_BAR,
+                    mRunningSettings[SettingsItem.SETTING_LAYOUT_MARGIN_RIGHT]));
+            mSettings.add(new SettingsItem(SettingsItem.SETTING_LAYOUT_MARGIN_BOTTOM,
+                    R.string.layout_margin_bottom, SettingsItem.TYPE_SEEK_BAR,
+                    mRunningSettings[SettingsItem.SETTING_LAYOUT_MARGIN_BOTTOM]));
             notifyDataSetChanged();
         }
 
@@ -825,40 +888,26 @@ public class RunningSettingDialog extends DialogFragment {
             SharedPreferences.Editor editor =
                 PreferenceManager.getDefaultSharedPreferences(activity).edit();
 
-            int feedback = mSettings.get(0).getValue();
-            if (mUseHapticFeedback != feedback) {
-                editor.putBoolean(InputOverlay.PREF_HAPTIC_FEEDBACK, feedback > 0);
-                InputOverlay.sUseHapticFeedback = feedback > 0;
+            if (mInitialUseHapticFeedback != mUseHapticFeedback) {
+                editor.putBoolean(InputOverlay.PREF_HAPTIC_FEEDBACK, mUseHapticFeedback > 0);
+                InputOverlay.sUseHapticFeedback = mUseHapticFeedback > 0;
             }
-            mSettings.remove(0);
-
-            int relative = mSettings.get(0).getValue();
-            if (mJoystickRelative != relative) {
-                editor.putBoolean(InputOverlay.PREF_JOYSTICK_RELATIVE, relative > 0);
-                InputOverlay.sJoystickRelative = relative > 0;
+            if (mInitialJoystickRelative != mJoystickRelative) {
+                editor.putBoolean(InputOverlay.PREF_JOYSTICK_RELATIVE, mJoystickRelative > 0);
+                InputOverlay.sJoystickRelative = mJoystickRelative > 0;
             }
-            mSettings.remove(0);
-
-            int hide = mSettings.get(0).getValue();
-            if (mHideInputOverlay != hide) {
-                editor.putBoolean(InputOverlay.PREF_CONTROLLER_HIDE, hide > 0);
-                InputOverlay.sHideInputOverlay = hide > 0;
+            if (mInitialHideInputOverlay != mHideInputOverlay) {
+                editor.putBoolean(InputOverlay.PREF_CONTROLLER_HIDE, mHideInputOverlay > 0);
+                InputOverlay.sHideInputOverlay = mHideInputOverlay > 0;
             }
-            mSettings.remove(0);
-
-            int scale = mSettings.get(0).getValue();
-            if (mControllerScale != scale) {
-                editor.putInt(InputOverlay.PREF_CONTROLLER_SCALE, scale);
-                InputOverlay.sControllerScale = scale;
+            if (mInitialControllerScale != mControllerScale) {
+                editor.putInt(InputOverlay.PREF_CONTROLLER_SCALE, mControllerScale);
+                InputOverlay.sControllerScale = mControllerScale;
             }
-            mSettings.remove(0);
-
-            int alpha = mSettings.get(0).getValue();
-            if (mControllerAlpha != alpha) {
-                editor.putInt(InputOverlay.PREF_CONTROLLER_ALPHA, alpha);
-                InputOverlay.sControllerAlpha = alpha;
+            if (mInitialControllerAlpha != mControllerAlpha) {
+                editor.putInt(InputOverlay.PREF_CONTROLLER_ALPHA, mControllerAlpha);
+                InputOverlay.sControllerAlpha = mControllerAlpha;
             }
-            mSettings.remove(0);
 
             // applay prefs
             editor.apply();
@@ -866,23 +915,83 @@ public class RunningSettingDialog extends DialogFragment {
 
             // native settings
             boolean isChanged = false;
-            int[] newSettings = mRunningSettings.clone();
-            for (SettingsItem item : mSettings) {
-                final int setting = item.getSetting();
-                if (setting >= 0 && setting < newSettings.length) {
-                    newSettings[setting] = item.getValue();
-                }
-            }
             for (int i = 0; i < mRunningSettings.length; ++i) {
-                if (newSettings[i] != mRunningSettings[i]) {
+                if (mInitialRunningSettings[i] != mRunningSettings[i]) {
                     isChanged = true;
                     break;
                 }
             }
             if (isChanged) {
-                NativeLibrary.setRunningSettings(newSettings);
+                NativeLibrary.setRunningSettings(mRunningSettings);
             }
-            mRunningSettings = null;
+            mInitialRunningSettings = mRunningSettings.clone();
+            mInitialUseHapticFeedback = mUseHapticFeedback;
+            mInitialJoystickRelative = mJoystickRelative;
+            mInitialHideInputOverlay = mHideInputOverlay;
+            mInitialControllerScale = mControllerScale;
+            mInitialControllerAlpha = mControllerAlpha;
+        }
+
+        public void updateWorkingValue(int setting, int value) {
+            if (setting >= 0 && mRunningSettings != null && setting < mRunningSettings.length) {
+                mRunningSettings[setting] = value;
+                return;
+            }
+
+            switch (setting) {
+            case SettingsItem.SETTING_USE_HAPTIC_FEEDBACK:
+                mUseHapticFeedback = value;
+                break;
+            case SettingsItem.SETTING_JOYSTICK_RELATIVE:
+                mJoystickRelative = value;
+                break;
+            case SettingsItem.SETTING_HIDE_INPUT_OVERLAY:
+                mHideInputOverlay = value;
+                break;
+            case SettingsItem.SETTING_CONTROLLER_SCALE:
+                mControllerScale = value;
+                break;
+            case SettingsItem.SETTING_CONTROLLER_ALPHA:
+                mControllerAlpha = value;
+                break;
+            default:
+                break;
+            }
+        }
+
+        public int getLargeScreenTopAutoFitForCurrentDisplay() {
+            EmulationActivity activity = (EmulationActivity)NativeLibrary.getEmulationContext();
+            if (activity == null) {
+                return NativeLibrary.getLargeScreenTopAutoFitProportion();
+            }
+
+            int width = activity.getResources().getDisplayMetrics().widthPixels;
+            int height = activity.getResources().getDisplayMetrics().heightPixels;
+            return NativeLibrary.getLargeScreenTopAutoFitProportionForDimensions(
+                width, height, mRunningSettings[SettingsItem.SETTING_LAYOUT_MARGIN_LEFT],
+                mRunningSettings[SettingsItem.SETTING_LAYOUT_MARGIN_TOP],
+                mRunningSettings[SettingsItem.SETTING_LAYOUT_MARGIN_RIGHT],
+                mRunningSettings[SettingsItem.SETTING_LAYOUT_MARGIN_BOTTOM]);
+        }
+
+        private void ensureWorkingStateLoaded() {
+            if (mInitialRunningSettings == null) {
+                mInitialRunningSettings = NativeLibrary.getRunningSettings();
+                mRunningSettings = mInitialRunningSettings.clone();
+            }
+
+            if (mInitialUseHapticFeedback == Integer.MIN_VALUE) {
+                mInitialUseHapticFeedback = InputOverlay.sUseHapticFeedback ? 1 : 0;
+                mUseHapticFeedback = mInitialUseHapticFeedback;
+                mInitialJoystickRelative = InputOverlay.sJoystickRelative ? 1 : 0;
+                mJoystickRelative = mInitialJoystickRelative;
+                mInitialHideInputOverlay = InputOverlay.sHideInputOverlay ? 1 : 0;
+                mHideInputOverlay = mInitialHideInputOverlay;
+                mInitialControllerScale = InputOverlay.sControllerScale;
+                mControllerScale = mInitialControllerScale;
+                mInitialControllerAlpha = InputOverlay.sControllerAlpha;
+                mControllerAlpha = mInitialControllerAlpha;
+            }
         }
     }
 }

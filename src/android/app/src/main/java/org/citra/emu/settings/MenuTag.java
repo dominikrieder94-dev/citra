@@ -4,6 +4,7 @@ import androidx.annotation.Nullable;
 
 public enum MenuTag {
     CONFIG("Config"),
+    CONFIG_SCREEN_LAYOUT("Config", 1),
     INPUT("Input");
 
     private String mTag;

@@ -4,18 +4,22 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Build;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.widget.Toast;
+import android.graphics.Rect;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 import androidx.fragment.app.FragmentTransaction;
 
+import org.citra.emu.NativeLibrary;
 import org.citra.emu.R;
 import org.citra.emu.settings.model.Setting;
+import org.citra.emu.settings.model.IntSetting;
 import org.citra.emu.settings.model.StringSetting;
 import org.citra.emu.utils.CitraDirectory;
 import org.citra.emu.utils.EsDeFrontendRegistration;
@@ -25,6 +29,8 @@ import org.citra.emu.utils.PermissionsHandler;
 import java.io.File;
 
 public final class SettingsActivity extends AppCompatActivity {
+    public static final String ACTION_SCREEN_LAYOUT_TOP_AUTO_FIT =
+        "action_screen_layout_top_auto_fit";
     private static final String FRAGMENT_TAG = "settings";
     private static final int REQUEST_CODE_STATES_DIRECTORY =
         FileBrowserHelper.REQUEST_OPEN_DIRECTORY;
@@ -242,6 +248,42 @@ public final class SettingsActivity extends AppCompatActivity {
         mShouldSave = true;
     }
 
+    public void refreshSettingsList() {
+        SettingsFragment fragment = getSettingsFragment();
+        if (fragment != null) {
+            fragment.showSettingsList(mSettings);
+        }
+    }
+
+    public void applyLargeScreenTopAutoFit() {
+        int[] size = getCurrentWindowSize();
+        int portraitWidth = Math.min(size[0], size[1]);
+        int portraitHeight = Math.max(size[0], size[1]);
+        int landscapeWidth = portraitHeight;
+        int landscapeHeight = portraitWidth;
+
+        int marginLeft = getIntSettingValue(Settings.SECTION_INI_RENDERER,
+                                            SettingsFile.KEY_LAYOUT_MARGIN_LEFT, 0);
+        int marginTop = getIntSettingValue(Settings.SECTION_INI_RENDERER,
+                                           SettingsFile.KEY_LAYOUT_MARGIN_TOP, 0);
+        int marginRight = getIntSettingValue(Settings.SECTION_INI_RENDERER,
+                                             SettingsFile.KEY_LAYOUT_MARGIN_RIGHT, 0);
+        int marginBottom = getIntSettingValue(Settings.SECTION_INI_RENDERER,
+                                              SettingsFile.KEY_LAYOUT_MARGIN_BOTTOM, 0);
+
+        int portraitAuto = NativeLibrary.getLargeScreenTopAutoFitProportionForDimensions(
+            portraitWidth, portraitHeight, marginLeft, marginTop, marginRight, marginBottom);
+        int landscapeAuto = NativeLibrary.getLargeScreenTopAutoFitProportionForDimensions(
+            landscapeWidth, landscapeHeight, marginLeft, marginTop, marginRight, marginBottom);
+
+        putSetting(new IntSetting(SettingsFile.KEY_LARGE_SCREEN_PROPORTION,
+                                  Settings.SECTION_INI_RENDERER, portraitAuto));
+        putSetting(new IntSetting(SettingsFile.KEY_LANDSCAPE_LARGE_SCREEN_PROPORTION,
+                                  Settings.SECTION_INI_RENDERER, landscapeAuto));
+        setSettingChanged();
+        refreshSettingsList();
+    }
+
     public void openStoragePathPicker(String settingKey) {
         if (EsDeFrontendRegistration.KEY_ES_DE_CUSTOM_SYSTEMS_PATH.equals(settingKey)) {
             mPendingDirectorySettingKey = settingKey;
@@ -411,10 +453,21 @@ public final class SettingsActivity extends AppCompatActivity {
         }
     }
 
-    private void refreshSettingsList() {
-        SettingsFragment fragment = getSettingsFragment();
-        if (fragment != null) {
-            fragment.showSettingsList(mSettings);
+    private int[] getCurrentWindowSize() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            Rect bounds = getWindowManager().getCurrentWindowMetrics().getBounds();
+            return new int[]{bounds.width(), bounds.height()};
         }
+        android.util.DisplayMetrics metrics = new android.util.DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getRealMetrics(metrics);
+        return new int[]{metrics.widthPixels, metrics.heightPixels};
+    }
+
+    private int getIntSettingValue(String sectionName, String key, int defaultValue) {
+        Setting setting = mSettings.getSection(sectionName).getSetting(key);
+        if (setting instanceof IntSetting) {
+            return ((IntSetting)setting).getValue();
+        }
+        return defaultValue;
     }
 }

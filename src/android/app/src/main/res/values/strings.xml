@@ -146,6 +146,8 @@
 
     <string name="setting_header_core">System</string>
     <string name="setting_header_renderer">Renderer</string>
+    <string name="setting_header_screen_layout">Screen Layout</string>
+    <string name="setting_header_layout_margins">Minimum Margins</string>
     <string name="setting_header_storage">Storage</string>
     <string name="setting_header_frontend_integration">Frontend Integration</string>
     <string name="setting_header_audio">Audio</string>
@@ -178,6 +180,8 @@
 
     <string name="show_fps">Show FPS</string>
     <string name="layout_option">Screen Layout</string>
+    <string name="setting_screen_layout_settings">Screen Layout Settings</string>
+    <string name="setting_screen_layout_settings_description">Open a dedicated page for layout type, layout-specific options, and minimum margins.</string>
     <string name="internal_resolution">Internal Resolution</string>
     <string name="setting_hw_shader">Enable Hardware Shader</string>
     <string name="setting_hw_shader_desc">Turn it on to improve performance, but some 2D games have display issues.</string>
@@ -198,10 +202,21 @@
     <string name="setting_custom_textures_description">Textures directory: citra-emu/load/textures/\"Game ID\"/.</string>
     <string name="large_screen_proportion">Top-Aligned Secondary Screen Size</string>
     <string name="large_screen_proportion_description">Only applies to Large Screen (Top Aligned). Sets the secondary screen size as a percentage of the primary screen size.</string>
+    <string name="large_screen_auto_fit">Auto Fit Top-Aligned Layout</string>
+    <string name="large_screen_auto_fit_description">Set the top-aligned secondary size to the recommended value for the current display.</string>
+    <string name="large_screen_secondary_left">Secondary Screen on Left</string>
+    <string name="large_screen_secondary_left_description">Only applies to Large Screen (Top Aligned). Moves the secondary screen to the left of the primary screen.</string>
+    <string name="large_screen_secondary_top">Secondary Screen on Top</string>
+    <string name="large_screen_secondary_top_description">Only applies to Large Screen (Top Aligned). Aligns the secondary screen to the top edge of the primary screen instead of the bottom edge.</string>
     <string name="hybrid_side_column_left">Side Column on Left</string>
     <string name="hybrid_side_column_left_description">Only applies to Hybrid Screen. Moves the stacked side column to the left of the main screen.</string>
     <string name="hybrid_secondary_top">Secondary Screen on Top</string>
     <string name="hybrid_secondary_top_description">Only applies to Hybrid Screen. Places the secondary screen above the duplicated main screen.</string>
+    <string name="layout_margin_left">Minimum Left Margin</string>
+    <string name="layout_margin_top">Minimum Top Margin</string>
+    <string name="layout_margin_right">Minimum Right Margin</string>
+    <string name="layout_margin_bottom">Minimum Bottom Margin</string>
+    <string name="layout_margin_description">Minimum margin, in pixels, for automatic layouts. Larger aspect-ratio letterboxing already counts toward this requirement.</string>
     <string name="setting_shader_type">Shader Type</string>
     <string name="setting_factor_3d">Factor 3D (3D Depth Slider)</string>
     <string name="setting_camera_type">Camera Type</string>

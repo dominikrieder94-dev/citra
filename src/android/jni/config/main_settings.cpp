@@ -35,12 +35,32 @@ const ConfigInfo<Settings::LayoutOption> LANDSCAPE_LAYOUT_OPTION{
 const ConfigInfo<u16> LARGE_SCREEN_PROPORTION{{"Renderer", "large_screen_proportion"}, 75};
 const ConfigInfo<u16> LANDSCAPE_LARGE_SCREEN_PROPORTION{
     {"Renderer", "landscape_large_screen_proportion"}, 75};
+const ConfigInfo<bool> LARGE_SCREEN_SECONDARY_LEFT{
+    {"Renderer", "large_screen_secondary_left"}, false};
+const ConfigInfo<bool> LANDSCAPE_LARGE_SCREEN_SECONDARY_LEFT{
+    {"Renderer", "landscape_large_screen_secondary_left"}, false};
+const ConfigInfo<bool> LARGE_SCREEN_SECONDARY_TOP{
+    {"Renderer", "large_screen_secondary_top"}, true};
+const ConfigInfo<bool> LANDSCAPE_LARGE_SCREEN_SECONDARY_TOP{
+    {"Renderer", "landscape_large_screen_secondary_top"}, true};
 const ConfigInfo<bool> HYBRID_SIDE_COLUMN_LEFT{{"Renderer", "hybrid_side_column_left"}, false};
 const ConfigInfo<bool> LANDSCAPE_HYBRID_SIDE_COLUMN_LEFT{
     {"Renderer", "landscape_hybrid_side_column_left"}, false};
 const ConfigInfo<bool> HYBRID_SECONDARY_TOP{{"Renderer", "hybrid_secondary_top"}, false};
 const ConfigInfo<bool> LANDSCAPE_HYBRID_SECONDARY_TOP{
     {"Renderer", "landscape_hybrid_secondary_top"}, false};
+const ConfigInfo<u16> LAYOUT_MARGIN_LEFT{{"Renderer", "layout_margin_left"}, 0};
+const ConfigInfo<u16> LANDSCAPE_LAYOUT_MARGIN_LEFT{
+    {"Renderer", "landscape_layout_margin_left"}, 0};
+const ConfigInfo<u16> LAYOUT_MARGIN_TOP{{"Renderer", "layout_margin_top"}, 0};
+const ConfigInfo<u16> LANDSCAPE_LAYOUT_MARGIN_TOP{
+    {"Renderer", "landscape_layout_margin_top"}, 0};
+const ConfigInfo<u16> LAYOUT_MARGIN_RIGHT{{"Renderer", "layout_margin_right"}, 0};
+const ConfigInfo<u16> LANDSCAPE_LAYOUT_MARGIN_RIGHT{
+    {"Renderer", "landscape_layout_margin_right"}, 0};
+const ConfigInfo<u16> LAYOUT_MARGIN_BOTTOM{{"Renderer", "layout_margin_bottom"}, 0};
+const ConfigInfo<u16> LANDSCAPE_LAYOUT_MARGIN_BOTTOM{
+    {"Renderer", "landscape_layout_margin_bottom"}, 0};
 const ConfigInfo<Settings::PresentationMode> SCREEN_PRESENTATION_MODE{
         {"Renderer", "screen_presentation_mode"}, Settings::PresentationMode::Default};
 const ConfigInfo<std::string> POST_PROCESSING_SHADER{{"Renderer", "pp_shader_name"}, ""};

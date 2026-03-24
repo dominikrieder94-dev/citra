@@ -31,6 +31,7 @@ import org.citra.emu.settings.view.SettingsItem;
 import org.citra.emu.settings.view.SingleChoiceSetting;
 import org.citra.emu.settings.view.SliderSetting;
 import org.citra.emu.settings.view.StringSingleChoiceSetting;
+import org.citra.emu.settings.view.SubmenuSetting;
 import org.citra.emu.utils.CitraDirectory;
 import org.citra.emu.utils.EsDeFrontendRegistration;
 
@@ -112,6 +113,8 @@ public final class SettingsFragment extends Fragment {
         mSettings = settings;
         if (mMenuTag == MenuTag.INPUT) {
             mSettingsList = loadBindingsList();
+        } else if (mMenuTag == MenuTag.CONFIG_SCREEN_LAYOUT) {
+            mSettingsList = loadScreenLayoutSettingsList();
         } else {
             mSettingsList = loadSettingsList();
         }
@@ -138,14 +141,6 @@ public final class SettingsFragment extends Fragment {
         Setting factor3d = rendererSection.getSetting(SettingsFile.KEY_FACTOR_3D);
         Setting largeScreenProportion =
             rendererSection.getSetting(SettingsFile.KEY_LARGE_SCREEN_PROPORTION);
-        Setting hybridSideColumnLeft =
-            rendererSection.getSetting(SettingsFile.KEY_HYBRID_SIDE_COLUMN_LEFT);
-        Setting hybridSecondaryTop =
-            rendererSection.getSetting(SettingsFile.KEY_HYBRID_SECONDARY_TOP);
-        final int currentLayout =
-            layoutOption instanceof org.citra.emu.settings.model.IntSetting
-                ? ((org.citra.emu.settings.model.IntSetting)layoutOption).getValue()
-                : 0;
 
         SettingSection debugSection = mSettings.getSection(Settings.SECTION_INI_DEBUG);
         Setting shaderType = debugSection.getSetting(SettingsFile.KEY_SHADER_TYPE);
@@ -156,9 +151,9 @@ public final class SettingsFragment extends Fragment {
 
         sl.add(new CheckBoxSetting(SettingsFile.KEY_USE_PRESENT_THREAD, Settings.SECTION_INI_DEBUG,
                 R.string.setting_use_present_thread, R.string.setting_use_present_thread_desc, true, presentThread));
-        sl.add(new SingleChoiceSetting(
-            SettingsFile.KEY_LAYOUT_OPTION, Settings.SECTION_INI_RENDERER, R.string.layout_option,
-            0, R.array.layoutOptionEntries, R.array.layoutOptionValues, 0, layoutOption));
+        sl.add(new SubmenuSetting(
+                "screen_layout_settings", null, R.string.setting_screen_layout_settings,
+                R.string.setting_screen_layout_settings_description, MenuTag.CONFIG_SCREEN_LAYOUT));
         sl.add(new SingleChoiceSetting(SettingsFile.KEY_RESOLUTION_FACTOR,
                                        Settings.SECTION_INI_RENDERER, R.string.internal_resolution,
                                        0, R.array.internalResolutionEntries,
@@ -188,18 +183,6 @@ public final class SettingsFragment extends Fragment {
                 R.string.cpu_usage_limit, R.string.cpu_usage_limit_description, false, cpuLimit));
         sl.add(new CheckBoxSetting(SettingsFile.KEY_USE_FENCE_SYNC, Settings.SECTION_INI_RENDERER,
                 R.string.setting_use_fence_sync, R.string.setting_use_fence_sync_description, false, useFenceSync));
-        sl.add(new SliderSetting(SettingsFile.KEY_LARGE_SCREEN_PROPORTION,
-                Settings.SECTION_INI_RENDERER, R.string.large_screen_proportion,
-                R.string.large_screen_proportion_description, 25, 100, "%", 75,
-                largeScreenProportion));
-        if (currentLayout == 5) {
-            sl.add(new CheckBoxSetting(SettingsFile.KEY_HYBRID_SIDE_COLUMN_LEFT,
-                    Settings.SECTION_INI_RENDERER, R.string.hybrid_side_column_left,
-                    R.string.hybrid_side_column_left_description, false, hybridSideColumnLeft));
-            sl.add(new CheckBoxSetting(SettingsFile.KEY_HYBRID_SECONDARY_TOP,
-                    Settings.SECTION_INI_RENDERER, R.string.hybrid_secondary_top,
-                    R.string.hybrid_secondary_top_description, false, hybridSecondaryTop));
-        }
         sl.add(new SliderSetting(SettingsFile.KEY_FRAME_LIMIT, Settings.SECTION_INI_RENDERER,
                 R.string.frame_limit_slider, R.string.frame_limit_slider_description, 200, "",
                 100, frameLimit));
@@ -317,6 +300,79 @@ public final class SettingsFragment extends Fragment {
             sl.add(new EditorSetting(SettingsFile.KEY_BAIDU_OCR_KEY, Settings.SECTION_INI_DEBUG, ocrKey, R.string.baidu_ocr_key, 0));
             sl.add(new EditorSetting(SettingsFile.KEY_BAIDU_OCR_SECRET, Settings.SECTION_INI_DEBUG, ocrSecret, R.string.baidu_ocr_secret, 0));
         }
+
+        return sl;
+    }
+
+    private ArrayList<SettingsItem> loadScreenLayoutSettingsList() {
+        ArrayList<SettingsItem> sl = new ArrayList<>();
+
+        SettingSection rendererSection = mSettings.getSection(Settings.SECTION_INI_RENDERER);
+        Setting layoutOption = rendererSection.getSetting(SettingsFile.KEY_LAYOUT_OPTION);
+        Setting largeScreenProportion =
+            rendererSection.getSetting(SettingsFile.KEY_LARGE_SCREEN_PROPORTION);
+        Setting largeScreenSecondaryLeft =
+            rendererSection.getSetting(SettingsFile.KEY_LARGE_SCREEN_SECONDARY_LEFT);
+        Setting largeScreenSecondaryTop =
+            rendererSection.getSetting(SettingsFile.KEY_LARGE_SCREEN_SECONDARY_TOP);
+        Setting hybridSideColumnLeft =
+            rendererSection.getSetting(SettingsFile.KEY_HYBRID_SIDE_COLUMN_LEFT);
+        Setting hybridSecondaryTop =
+            rendererSection.getSetting(SettingsFile.KEY_HYBRID_SECONDARY_TOP);
+        Setting layoutMarginLeft = rendererSection.getSetting(SettingsFile.KEY_LAYOUT_MARGIN_LEFT);
+        Setting layoutMarginTop = rendererSection.getSetting(SettingsFile.KEY_LAYOUT_MARGIN_TOP);
+        Setting layoutMarginRight =
+            rendererSection.getSetting(SettingsFile.KEY_LAYOUT_MARGIN_RIGHT);
+        Setting layoutMarginBottom =
+            rendererSection.getSetting(SettingsFile.KEY_LAYOUT_MARGIN_BOTTOM);
+        final int currentLayout =
+            layoutOption instanceof org.citra.emu.settings.model.IntSetting
+                ? ((org.citra.emu.settings.model.IntSetting)layoutOption).getValue()
+                : 0;
+
+        sl.add(new HeaderSetting(null, null, R.string.setting_header_screen_layout, 0));
+        sl.add(new SingleChoiceSetting(
+            SettingsFile.KEY_LAYOUT_OPTION, Settings.SECTION_INI_RENDERER, R.string.layout_option,
+            0, R.array.layoutOptionEntries, R.array.layoutOptionValues, 0, layoutOption));
+
+        if (currentLayout == 4) {
+            sl.add(new SliderSetting(SettingsFile.KEY_LARGE_SCREEN_PROPORTION,
+                    Settings.SECTION_INI_RENDERER, R.string.large_screen_proportion,
+                    R.string.large_screen_proportion_description, 25, 100, "%", 75,
+                    largeScreenProportion));
+            sl.add(new ActionSetting(SettingsActivity.ACTION_SCREEN_LAYOUT_TOP_AUTO_FIT,
+                    R.string.large_screen_auto_fit,
+                    R.string.large_screen_auto_fit_description, ""));
+            sl.add(new CheckBoxSetting(SettingsFile.KEY_LARGE_SCREEN_SECONDARY_LEFT,
+                    Settings.SECTION_INI_RENDERER, R.string.large_screen_secondary_left,
+                    R.string.large_screen_secondary_left_description, false,
+                    largeScreenSecondaryLeft));
+            sl.add(new CheckBoxSetting(SettingsFile.KEY_LARGE_SCREEN_SECONDARY_TOP,
+                    Settings.SECTION_INI_RENDERER, R.string.large_screen_secondary_top,
+                    R.string.large_screen_secondary_top_description, true,
+                    largeScreenSecondaryTop));
+        } else if (currentLayout == 5) {
+            sl.add(new CheckBoxSetting(SettingsFile.KEY_HYBRID_SIDE_COLUMN_LEFT,
+                    Settings.SECTION_INI_RENDERER, R.string.hybrid_side_column_left,
+                    R.string.hybrid_side_column_left_description, false, hybridSideColumnLeft));
+            sl.add(new CheckBoxSetting(SettingsFile.KEY_HYBRID_SECONDARY_TOP,
+                    Settings.SECTION_INI_RENDERER, R.string.hybrid_secondary_top,
+                    R.string.hybrid_secondary_top_description, false, hybridSecondaryTop));
+        }
+
+        sl.add(new HeaderSetting(null, null, R.string.setting_header_layout_margins, 0));
+        sl.add(new SliderSetting(SettingsFile.KEY_LAYOUT_MARGIN_LEFT,
+                Settings.SECTION_INI_RENDERER, R.string.layout_margin_left,
+                R.string.layout_margin_description, 0, 500, "px", 0, layoutMarginLeft));
+        sl.add(new SliderSetting(SettingsFile.KEY_LAYOUT_MARGIN_TOP,
+                Settings.SECTION_INI_RENDERER, R.string.layout_margin_top,
+                R.string.layout_margin_description, 0, 500, "px", 0, layoutMarginTop));
+        sl.add(new SliderSetting(SettingsFile.KEY_LAYOUT_MARGIN_RIGHT,
+                Settings.SECTION_INI_RENDERER, R.string.layout_margin_right,
+                R.string.layout_margin_description, 0, 500, "px", 0, layoutMarginRight));
+        sl.add(new SliderSetting(SettingsFile.KEY_LAYOUT_MARGIN_BOTTOM,
+                Settings.SECTION_INI_RENDERER, R.string.layout_margin_bottom,
+                R.string.layout_margin_description, 0, 500, "px", 0, layoutMarginBottom));
 
         return sl;
     }
