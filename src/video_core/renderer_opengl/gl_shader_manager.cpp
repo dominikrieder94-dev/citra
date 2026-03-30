@@ -291,6 +291,12 @@ public:
         }
     }
 
+    std::pair<u64, u64> GetCurrentVertexFragmentHashes() const {
+        const u64 vs_hash = current_shaders.vs ? current_shaders.vs->GetHash() : 0;
+        const u64 fs_hash = current_shaders.fs ? current_shaders.fs->GetHash() : 0;
+        return {vs_hash, fs_hash};
+    }
+
     static constexpr u32 PROGRAM_CACHE_VERSION = 0x9;
 
     static std::string GetCacheFile() {
@@ -502,6 +508,10 @@ void ShaderProgramManager::UseFragmentShader(const Pica::Regs& regs) {
 
 void ShaderProgramManager::ApplyTo(OpenGLState& state) {
     impl->ApplyTo(state);
+}
+
+std::pair<u64, u64> ShaderProgramManager::GetCurrentVertexFragmentHashes() const {
+    return impl->GetCurrentVertexFragmentHashes();
 }
 
 } // namespace OpenGL

@@ -19,6 +19,8 @@
 #include "common/microprofile.h"
 #include "common/scope_exit.h"
 #include "common/vector_math.h"
+#include "core/core.h"
+#include "core/hle/kernel/process.h"
 #include "core/hw/gpu.h"
 #include "core/settings.h"
 #include "video_core/pica_state.h"
@@ -37,6 +39,68 @@ namespace OpenGL {
 
 using PixelFormat = SurfaceParams::PixelFormat;
 using SurfaceType = SurfaceParams::SurfaceType;
+
+namespace {
+
+bool IsPokemonTitle(u64 title_id) {
+    switch (title_id) {
+    case 0x0004000000055D00: // Pokemon X
+    case 0x0004000000055E00: // Pokemon Y
+    case 0x000400000011C500: // Pokemon Alpha Sapphire
+    case 0x000400000011C400: // Pokemon Omega Ruby
+    case 0x00040000001B5000: // Pokemon Ultra Sun
+    case 0x00040000001B5100: // Pokemon Ultra Moon
+    case 0x0004000000164800: // Pokemon Sun
+    case 0x0004000000175E00: // Pokemon Moon
+        return true;
+    default:
+        return false;
+    }
+}
+
+u64 GetCurrentTitleId() {
+    auto& system = Core::System::GetInstance();
+    const auto current_process = system.Kernel().GetCurrentProcess();
+    if (current_process && current_process->codeset) {
+        return current_process->codeset->program_id;
+    }
+
+    u64 title_id = 0;
+    if (system.GetAppLoader().ReadProgramId(title_id) != Loader::ResultStatus::Success) {
+        return 0;
+    }
+    return title_id;
+}
+
+bool ShouldSuppressPokemonFeedbackTexture(u64 title_id, u64 vs_hash, u64 fs_hash,
+                                          u32 texture_phys_addr, u32 draw_depth_addr) {
+#ifdef ARCHITECTURE_ARM64
+    if (!IsPokemonTitle(title_id) || texture_phys_addr == 0) {
+        return false;
+    }
+
+    if (vs_hash != 0x76204850D3D31438ull) {
+        return false;
+    }
+
+    if (texture_phys_addr == draw_depth_addr) {
+        return true;
+    }
+
+    switch (fs_hash) {
+    case 0xD375021927AD9455ull:
+        // This battle composite samples a specific offscreen surface while drawing the final
+        // main target. Suppressing only that source avoids the remaining left-side corruption.
+        return texture_phys_addr == 0x181BD000u;
+    default:
+        return false;
+    }
+#else
+    return false;
+#endif
+}
+
+} // namespace
 
 static bool IsVendorMali() {
     std::string gpu_vendor{reinterpret_cast<char const*>(glGetString(GL_VENDOR))};
@@ -611,7 +675,11 @@ bool RasterizerOpenGL::Draw(bool accelerate, bool is_indexed) {
     } else if (depth_surface) {
         res_scale = depth_surface->res_scale;
     }
-
+    const auto [current_vs_hash, current_fs_hash] =
+        shader_program_manager->GetCurrentVertexFragmentHashes();
+    const u64 current_title_id = GetCurrentTitleId();
+    const u32 current_depth_addr =
+        static_cast<u32>(regs.framebuffer.framebuffer.GetDepthBufferPhysicalAddress());
     // Sync and bind the texture surfaces
     const auto pica_textures = regs.texturing.GetTextures();
     for (unsigned texture_index = 0; texture_index < pica_textures.size(); ++texture_index) {
@@ -692,6 +760,13 @@ bool RasterizerOpenGL::Draw(bool accelerate, bool is_indexed) {
             }
 
             texture_samplers[texture_index].SyncWithConfig(texture.config);
+            const u32 texture_phys_addr = static_cast<u32>(texture.config.GetPhysicalAddress());
+            if (ShouldSuppressPokemonFeedbackTexture(current_title_id, current_vs_hash,
+                                                     current_fs_hash, texture_phys_addr,
+                                                     current_depth_addr)) {
+                state.texture_units[texture_index].texture_2d = texture_null.handle;
+                continue;
+            }
             Surface surface = res_cache.GetTextureSurface(texture);
             if (surface) {
                 if (surface->texture.handle == color_attachment) {
