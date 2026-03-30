@@ -35,10 +35,26 @@ CMAKE_DEPENDENT_OPTION(ENABLE_MF "Use Media Foundation decoder (preferred over F
 
 CMAKE_DEPENDENT_OPTION(COMPILE_WITH_DWARF "Add DWARF debugging information" ON "MINGW" OFF)
 
-if(NOT EXISTS ${PROJECT_SOURCE_DIR}/.git/hooks/pre-commit)
+find_package(Git QUIET)
+if(GIT_FOUND)
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" rev-parse --git-path hooks/pre-commit
+        WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+        OUTPUT_VARIABLE GIT_PRE_COMMIT_HOOK_PATH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET)
+endif()
+
+if(NOT GIT_PRE_COMMIT_HOOK_PATH)
+    set(GIT_PRE_COMMIT_HOOK_PATH "${PROJECT_SOURCE_DIR}/.git/hooks/pre-commit")
+endif()
+
+get_filename_component(GIT_PRE_COMMIT_HOOK_DIR "${GIT_PRE_COMMIT_HOOK_PATH}" DIRECTORY)
+if(NOT EXISTS "${GIT_PRE_COMMIT_HOOK_PATH}")
     message(STATUS "Copying pre-commit hook")
+    file(MAKE_DIRECTORY "${GIT_PRE_COMMIT_HOOK_DIR}")
     file(COPY hooks/pre-commit
-        DESTINATION ${PROJECT_SOURCE_DIR}/.git/hooks)
+        DESTINATION "${GIT_PRE_COMMIT_HOOK_DIR}")
 endif()
 
 # Detect current compilation architecture and create standard definitions
