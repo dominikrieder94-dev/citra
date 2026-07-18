@@ -75,7 +75,11 @@ const ConfigInfo<std::string> REMOTE_SHADER_HOST{
 // audio
 const ConfigInfo<bool> ENABLE_DSP_LLE{{"Audio", "enable_dsp_lle"}, false};
 const ConfigInfo<bool> DSP_LLE_MULTITHREAD{{"Audio", "dsp_lle_multithread"}, true};
-const ConfigInfo<bool> AUDIO_STRETCHING{{"Audio", "enable_audio_stretching"}, false};
+// Default-on for this fork: its per-frame emulation cost is higher than MMJ's, so emulation speed
+// wobbles a little (~98-102%). Audio stretching absorbs that variance and removes the punctual
+// audio crackle it would otherwise cause. Owner-validated on Pokemon Y (2026-07-17). Once the
+// per-frame CPU cost is reduced (dynarmic fastmem), this can revert to MMJ's off-by-default.
+const ConfigInfo<bool> AUDIO_STRETCHING{{"Audio", "enable_audio_stretching"}, true};
 const ConfigInfo<float> AUDIO_VOLUME{{"Audio", "audio_volume"}, 1.0F};
 const ConfigInfo<float> MIC_VOLUME{{"Audio", "mic_volume"}, 1.5F};
 const ConfigInfo<u8> AUDIO_OUTPUT_TYPE{{"Audio", "audio_output_type"}, 2};
