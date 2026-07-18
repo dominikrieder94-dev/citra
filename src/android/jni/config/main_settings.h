@@ -17,6 +17,7 @@ namespace Config {
 
 // core
 extern const ConfigInfo<bool> USE_CPU_JIT;
+extern const ConfigInfo<bool> USE_FASTMEM;
 extern const ConfigInfo<bool> IS_NEW_3DS;
 extern const ConfigInfo<bool> USE_GAME_CONFIG;
 extern const ConfigInfo<bool> USE_VIRTUAL_SD;

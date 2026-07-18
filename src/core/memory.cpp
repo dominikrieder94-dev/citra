@@ -7,6 +7,7 @@
 #include "audio_core/dsp_interface.h"
 #include "common/assert.h"
 #include "common/common_types.h"
+#include "common/fastmem_arena.h"
 #include "common/logging/log.h"
 #include "common/swap.h"
 #include "core/arm/arm_interface.h"
@@ -56,17 +57,65 @@ private:
 
 class MemorySystem::Impl {
 public:
-    // Visual Studio would try to allocate these on compile time if they are std::array, which would
-    // exceed the memory limit.
-    std::unique_ptr<u8[]> fcram = std::make_unique<u8[]>(Memory::FCRAM_N3DS_SIZE);
-    std::unique_ptr<u8[]> vram = std::make_unique<u8[]>(Memory::VRAM_SIZE);
-    std::unique_ptr<u8[]> n3ds_extra_ram = std::make_unique<u8[]>(Memory::N3DS_EXTRA_RAM_SIZE);
+    // Layout of the guest RAM backings inside the fastmem arena's shared-memory file. Keeping
+    // them in one file lets mapped guest pages be mirrored into the 4 GiB fastmem arena.
+    static constexpr std::size_t FCRAM_BACKING_OFFSET = 0;
+    static constexpr std::size_t VRAM_BACKING_OFFSET = Memory::FCRAM_N3DS_SIZE;
+    static constexpr std::size_t N3DS_EXTRA_RAM_BACKING_OFFSET =
+        VRAM_BACKING_OFFSET + Memory::VRAM_SIZE;
+    static constexpr std::size_t BACKING_TOTAL_SIZE =
+        N3DS_EXTRA_RAM_BACKING_OFFSET + Memory::N3DS_EXTRA_RAM_SIZE;
+
+    Impl() {
+        if (arena.IsValid()) {
+            fcram = arena.BackingBase() + FCRAM_BACKING_OFFSET;
+            vram = arena.BackingBase() + VRAM_BACKING_OFFSET;
+            n3ds_extra_ram = arena.BackingBase() + N3DS_EXTRA_RAM_BACKING_OFFSET;
+        } else {
+            // Visual Studio would try to allocate these on compile time if they are std::array,
+            // which would exceed the memory limit.
+            fcram_fallback = std::make_unique<u8[]>(Memory::FCRAM_N3DS_SIZE);
+            vram_fallback = std::make_unique<u8[]>(Memory::VRAM_SIZE);
+            n3ds_extra_ram_fallback = std::make_unique<u8[]>(Memory::N3DS_EXTRA_RAM_SIZE);
+            fcram = fcram_fallback.get();
+            vram = vram_fallback.get();
+            n3ds_extra_ram = n3ds_extra_ram_fallback.get();
+        }
+    }
+
+    /// True when `host` points at `size` bytes inside the arena-backed guest RAM, in which case
+    /// `backing_offset` receives the corresponding offset into the arena's backing file.
+    bool ResolveBackingOffset(const u8* host, std::size_t size, std::size_t& backing_offset) const {
+        if (!arena.IsValid() || host == nullptr) {
+            return false;
+        }
+        const u8* base = arena.BackingBase();
+        if (host >= base && host + size <= base + BACKING_TOTAL_SIZE) {
+            backing_offset = static_cast<std::size_t>(host - base);
+            return true;
+        }
+        return false;
+    }
+
+    Common::FastmemArena arena{BACKING_TOTAL_SIZE};
+
+    u8* fcram = nullptr;
+    u8* vram = nullptr;
+    u8* n3ds_extra_ram = nullptr;
 
     PageTable* current_page_table = nullptr;
     RasterizerCacheMarker cache_marker;
     std::vector<PageTable*> page_table_list;
 
+    /// The single address space mirrored into the fastmem arena (the application process).
+    PageTable* fastmem_page_table = nullptr;
+
     AudioCore::DspInterface* dsp = nullptr;
+
+private:
+    std::unique_ptr<u8[]> fcram_fallback;
+    std::unique_ptr<u8[]> vram_fallback;
+    std::unique_ptr<u8[]> n3ds_extra_ram_fallback;
 };
 
 MemorySystem::MemorySystem() : impl(std::make_unique<Impl>()) {}
@@ -87,6 +136,25 @@ void MemorySystem::MapPages(PageTable& page_table, u32 base, u32 size, u8* memor
     RasterizerFlushVirtualRegion(base << PAGE_BITS, size * PAGE_SIZE,
                                  FlushMode::FlushAndInvalidate);
 
+    // Mirror this mapping change into the fastmem arena for the bound address space. Ranges
+    // backed by memory outside the arena's backing file (e.g. DSP RAM) stay inaccessible in the
+    // arena, so JIT accesses there fault and fall back to the page-table/callback path.
+    const bool mirror = impl->arena.IsValid() && (&page_table == impl->fastmem_page_table);
+    std::size_t backing_offset = 0;
+    const bool mappable =
+        type == PageType::Memory &&
+        impl->ResolveBackingOffset(memory, static_cast<std::size_t>(size) * PAGE_SIZE,
+                                   backing_offset);
+    if (mirror) {
+        const u64 guest_addr = static_cast<u64>(base) * PAGE_SIZE;
+        const std::size_t byte_size = static_cast<std::size_t>(size) * PAGE_SIZE;
+        if (mappable) {
+            impl->arena.Map(guest_addr, backing_offset, byte_size);
+        } else {
+            impl->arena.Unmap(guest_addr, byte_size);
+        }
+    }
+
     u32 end = base + size;
     while (base != end) {
         ASSERT_MSG(base < PAGE_TABLE_NUM_ENTRIES, "out of range mapping at {:08X}", base);
@@ -98,6 +166,9 @@ void MemorySystem::MapPages(PageTable& page_table, u32 base, u32 size, u8* memor
         if (type == PageType::Memory && impl->cache_marker.IsCached(base * PAGE_SIZE)) {
             page_table.attributes[base] = PageType::RasterizerCachedMemory;
             page_table.pointers[base] = nullptr;
+            if (mirror && mappable) {
+                impl->arena.Unmap(static_cast<u64>(base) * PAGE_SIZE, PAGE_SIZE);
+            }
         }
 
         base += 1;
@@ -120,24 +191,41 @@ void MemorySystem::UnmapRegion(PageTable& page_table, VAddr base, u32 size) {
 
 u8* MemorySystem::GetPointerForRasterizerCache(VAddr addr) {
     if (addr >= LINEAR_HEAP_VADDR && addr < LINEAR_HEAP_VADDR_END) {
-        return impl->fcram.get() + (addr - LINEAR_HEAP_VADDR);
+        return impl->fcram + (addr - LINEAR_HEAP_VADDR);
     }
     if (addr >= NEW_LINEAR_HEAP_VADDR && addr < NEW_LINEAR_HEAP_VADDR_END) {
-        return impl->fcram.get() + (addr - NEW_LINEAR_HEAP_VADDR);
+        return impl->fcram + (addr - NEW_LINEAR_HEAP_VADDR);
     }
     if (addr >= VRAM_VADDR && addr < VRAM_VADDR_END) {
-        return impl->vram.get() + (addr - VRAM_VADDR);
+        return impl->vram + (addr - VRAM_VADDR);
     }
     UNREACHABLE();
 }
 
 void MemorySystem::RegisterPageTable(PageTable* page_table) {
     impl->page_table_list.push_back(page_table);
+    // Bind the fastmem arena to the first registered address space, which is the application
+    // process for games. Later address spaces simply don't get fastmem.
+    if (impl->arena.IsValid() && impl->fastmem_page_table == nullptr) {
+        impl->fastmem_page_table = page_table;
+    }
 }
 
 void MemorySystem::UnregisterPageTable(PageTable* page_table) {
     impl->page_table_list.erase(
         std::find(impl->page_table_list.begin(), impl->page_table_list.end(), page_table));
+    if (impl->fastmem_page_table == page_table) {
+        impl->fastmem_page_table = nullptr;
+        impl->arena.UnmapAll();
+    }
+}
+
+uintptr_t MemorySystem::GetFastmemArenaBase(const PageTable* page_table) const {
+    if (!impl->arena.IsValid() || page_table == nullptr ||
+        page_table != impl->fastmem_page_table) {
+        return 0;
+    }
+    return reinterpret_cast<uintptr_t>(impl->arena.ArenaBase());
 }
 
 template <typename T>
@@ -250,16 +338,16 @@ std::string MemorySystem::ReadCString(VAddr vaddr, u32 max_length) {
 
 u8* MemorySystem::GetPhysicalPointer(PAddr address) {
     if (address >= VRAM_PADDR && address <= VRAM_PADDR_END) {
-        return impl->vram.get() + (address - VRAM_PADDR);
+        return impl->vram + (address - VRAM_PADDR);
     }
     if (address >= DSP_RAM_PADDR && address <= DSP_RAM_PADDR_END) {
         return impl->dsp->GetDspMemory().data() + (address - DSP_RAM_PADDR);
     }
     if (address >= FCRAM_PADDR && address <= FCRAM_N3DS_PADDR_END) {
-        return impl->fcram.get() + (address - FCRAM_PADDR);
+        return impl->fcram + (address - FCRAM_PADDR);
     }
     if (address >= N3DS_EXTRA_RAM_PADDR && address <= N3DS_EXTRA_RAM_PADDR_END) {
-        return impl->n3ds_extra_ram.get() + (address - N3DS_EXTRA_RAM_PADDR);
+        return impl->n3ds_extra_ram + (address - N3DS_EXTRA_RAM_PADDR);
     }
     LOG_ERROR(HW_Memory, "unknown GetPhysicalPointer @ 0x{:08X}", address);
     return nullptr;
@@ -309,6 +397,9 @@ void MemorySystem::RasterizerMarkRegionCached(PAddr start, u32 size, bool cached
                     case PageType::Memory:
                         page_type = PageType::RasterizerCachedMemory;
                         page_table->pointers[vaddr >> PAGE_BITS] = nullptr;
+                        if (page_table == impl->fastmem_page_table) {
+                            impl->arena.Unmap(vaddr & ~PAGE_MASK, PAGE_SIZE);
+                        }
                         break;
                     default:
                         UNREACHABLE();
@@ -321,9 +412,15 @@ void MemorySystem::RasterizerMarkRegionCached(PAddr start, u32 size, bool cached
                         // address space, for example, a system module need not have a VRAM mapping.
                         break;
                     case PageType::RasterizerCachedMemory: {
+                        u8* pointer = GetPointerForRasterizerCache(vaddr & ~PAGE_MASK);
                         page_type = PageType::Memory;
-                        page_table->pointers[vaddr >> PAGE_BITS] =
-                            GetPointerForRasterizerCache(vaddr & ~PAGE_MASK);
+                        page_table->pointers[vaddr >> PAGE_BITS] = pointer;
+                        if (page_table == impl->fastmem_page_table) {
+                            std::size_t backing_offset = 0;
+                            if (impl->ResolveBackingOffset(pointer, PAGE_SIZE, backing_offset)) {
+                                impl->arena.Map(vaddr & ~PAGE_MASK, backing_offset, PAGE_SIZE);
+                            }
+                        }
                         break;
                     }
                     default:
@@ -583,14 +680,14 @@ void MemorySystem::CopyBlock(const Kernel::Process& dest_process,
 }
 
 u32 MemorySystem::GetFCRAMOffset(const u8* pointer) {
-    DEBUG_ASSERT(pointer >= impl->fcram.get() &&
-                 pointer <= impl->fcram.get() + Memory::FCRAM_N3DS_SIZE);
-    return static_cast<u32>(pointer - impl->fcram.get());
+    DEBUG_ASSERT(pointer >= impl->fcram &&
+                 pointer <= impl->fcram + Memory::FCRAM_N3DS_SIZE);
+    return static_cast<u32>(pointer - impl->fcram);
 }
 
 u8* MemorySystem::GetFCRAMPointer(u32 offset) {
     DEBUG_ASSERT(offset <= Memory::FCRAM_N3DS_SIZE);
-    return impl->fcram.get() + offset;
+    return impl->fcram + offset;
 }
 
 void MemorySystem::SetDSP(AudioCore::DspInterface& dsp) {

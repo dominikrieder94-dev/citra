@@ -6,6 +6,9 @@
 #include <cstring>
 #include <dynarmic/interface/A32/a32.h>
 #include <dynarmic/interface/exclusive_monitor.h>
+#ifdef ANDROID
+#include <android/log.h>
+#endif
 #include "common/assert.h"
 #include "common/microprofile.h"
 #include "core/arm/dynarmic/arm_dynarmic.h"
@@ -414,6 +417,21 @@ std::unique_ptr<Dynarmic::A32::Jit> ARM_Dynarmic::MakeJit() {
     config.page_table = &current_page_table->pointers;
     config.coprocessors[15] = std::make_shared<DynarmicCP15>(cp15_state);
     config.define_unpredictable_behaviour = true;
+
+    // Fastmem: let the JIT access guest memory directly through the 4 GiB mirror arena instead
+    // of an inline page-table walk. Unmapped, rasterizer-cached, and MMIO pages are inaccessible
+    // in the arena, so those accesses fault once and Dynarmic recompiles them onto the
+    // page-table/callback path.
+    if (Settings::values.use_fastmem) {
+        if (const uintptr_t arena_base = memory.GetFastmemArenaBase(current_page_table)) {
+            config.fastmem_pointer = arena_base;
+        }
+    }
+#ifdef ANDROID
+    __android_log_print(ANDROID_LOG_INFO, "citra", "[Fastmem] jit core=%zu engaged=%d",
+                        static_cast<std::size_t>(GetID()),
+                        config.fastmem_pointer.has_value() ? 1 : 0);
+#endif
 #ifdef ANDROID
     // The current Dynarmic default reserves a very large code cache on Android.
     // A smaller cache reduces native-heap pressure on-device and is still ample for 3DS workloads.
