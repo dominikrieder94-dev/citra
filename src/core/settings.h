@@ -156,6 +156,7 @@ struct Values {
 
     // Core
     bool use_cpu_jit;
+    bool use_fastmem = true;
 
     // Data Storage
     bool use_virtual_sd;

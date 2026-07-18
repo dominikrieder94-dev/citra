@@ -188,7 +188,8 @@ void LogAndroidRunConfig(const std::string& file_path) {
     __android_log_print(
         ANDROID_LOG_INFO, "citra",
         "[Perf][RunConfig] file=%s present_thread=%d fence_sync=%d stream_buffer_hack=%d "
-        "use_gles=%d resolution_factor=%d frame_limit=%d accurate_mul=%d shadow_rendering=%d",
+        "use_gles=%d resolution_factor=%d frame_limit=%d accurate_mul=%d shadow_rendering=%d "
+        "fastmem=%d",
         file_path.c_str(), static_cast<int>(Settings::values.use_present_thread),
         static_cast<int>(Settings::values.use_fence_sync),
         static_cast<int>(Settings::values.stream_buffer_hack),
@@ -196,7 +197,8 @@ void LogAndroidRunConfig(const std::string& file_path) {
         static_cast<int>(Settings::values.resolution_factor),
         static_cast<int>(Settings::values.frame_limit),
         static_cast<int>(Settings::values.shaders_accurate_mul),
-        static_cast<int>(Settings::values.shadow_rendering));
+        static_cast<int>(Settings::values.shadow_rendering),
+        static_cast<int>(Settings::values.use_fastmem));
 }
 
 #else
@@ -703,6 +705,7 @@ JNIEXPORT void JNICALL Java_org_citra_emu_NativeLibrary_Run(JNIEnv* env, jclass 
     Config::Load();
     // system
     Settings::values.use_cpu_jit = Config::Get(Config::USE_CPU_JIT);
+    Settings::values.use_fastmem = Config::Get(Config::USE_FASTMEM);
     Settings::values.is_new_3ds = Config::Get(Config::IS_NEW_3DS);
     Settings::values.use_virtual_sd = Config::Get(Config::USE_VIRTUAL_SD);
     Settings::values.region_value = Config::Get(Config::SYSTEM_REGION);

@@ -269,6 +269,12 @@ public:
     /// Unregisters page table for rasterizer cache marking
     void UnregisterPageTable(PageTable* page_table);
 
+    /**
+     * Base address of the Dynarmic fastmem arena mirroring the given address space, or 0 when
+     * fastmem is unavailable or the address space is not the arena-bound (application) one.
+     */
+    uintptr_t GetFastmemArenaBase(const PageTable* page_table) const;
+
     void SetDSP(AudioCore::DspInterface& dsp);
 
 private:

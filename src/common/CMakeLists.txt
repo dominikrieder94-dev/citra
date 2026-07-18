@@ -55,6 +55,8 @@ add_library(common STATIC
     common_funcs.h
     common_paths.h
     common_types.h
+    fastmem_arena.cpp
+    fastmem_arena.h
     file_util.cpp
     file_util.h
     hash.cpp
