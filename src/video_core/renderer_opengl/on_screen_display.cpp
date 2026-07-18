@@ -1,5 +1,6 @@
 #include "video_core/renderer_opengl/on_screen_display.h"
 
+#include <cmath>
 #include <memory>
 
 #include "common/timer.h"
@@ -343,9 +344,11 @@ void RasterFont::AddMessage(const std::string& message, MessageType type, u32 du
 
 void RasterFont::UpdateDebugInfo() {
     Core::PerfStats::Results stats = Core::System::GetInstance().GetAndResetPerfStats();
+    // Round to nearest: with the frame-aligned estimates a steady 0.999 speed is full speed and
+    // should read SPD:100, not flicker between 99 and 100 through truncation.
     std::string text = fmt::format(
-        "FPS:{:>2} - VPS:{:>2} - SPD:{:>2}", static_cast<int>(stats.game_fps),
-        static_cast<int>(stats.system_fps), static_cast<int>(stats.emulation_speed * 100.0));
+        "FPS:{:>2} - VPS:{:>2} - SPD:{:>2}", std::lround(stats.game_fps),
+        std::lround(stats.system_fps), std::lround(stats.emulation_speed * 100.0));
 
     AddMessage(text, MessageType::FPS, Duration::FOREVER, Color::BLUE);
 }
