@@ -79,23 +79,17 @@ bool ShouldSuppressPokemonFeedbackTexture(u64 title_id, u64 vs_hash, u64 fs_hash
         return false;
     }
 
+    (void)vs_hash;
     if (texture_phys_addr == draw_depth_addr) {
-        switch (fs_hash) {
-        case 0x219E483FD9BC5C73ull:
-        case 0x69DD80CC605B4B8Full:
-        case 0x8A76329CB25030B1ull:
-        case 0x9F0AC915A32BAB2Cull:
-        case 0xD375021927AD9455ull:
-        case 0xEC68C55D9E1FD734ull:
-        case 0xFB2B5B4178346715ull:
-            // The problematic Pokemon battle composite changes vertex-shader hashes across
-            // accurate_mul modes, but this fragment-hash cluster still self-samples the live
-            // draw depth target. Suppress those reads by fragment family instead of one exact
-            // vertex hash so Off/Fast/Accurate all hit the same protection.
-            return true;
-        default:
-            return false;
-        }
+        // Suppress ALL live depth self-feedback in the Pokemon battle composite. A pass that samples
+        // the texture bound as the current draw's own depth target reads undefined data on real
+        // hardware; here it renders as the black "moving lines" artifact. The earlier fix enumerated
+        // a handful of fragment-shader hashes, but different battle scenes use many more of them
+        // (20+ observed across Pokemon Y trainer fights on device 2026-07-24), so the lines returned
+        // in scenes the list did not cover. Nulling the read by the feedback pattern (sampled
+        // texture == current depth target) instead of by hash fixes every battle scene at once, and
+        // color self-feedback is already handled separately via a copy of the render target.
+        return true;
     }
 
     switch (fs_hash) {
