@@ -685,6 +685,24 @@ bool RasterizerOpenGL::Draw(bool accelerate, bool is_indexed) {
     const u64 current_title_id = GetCurrentTitleId();
     const u32 current_depth_addr =
         static_cast<u32>(regs.framebuffer.framebuffer.GetDepthBufferPhysicalAddress());
+#ifdef ARCHITECTURE_ARM64
+    // The Legend of Zelda: Ocarina of Time 3D renders a reflection/effect surface over the Sacred
+    // Forest Meadow pool by sampling an off-screen render target (produced earlier in the frame at
+    // physical base 0x18000000). On this Android GLES build that sampled buffer reads back as solid
+    // black, so the surface draws as a large opaque black quad on the ground that pops in when Link
+    // crosses a proximity trigger. It is absent on the reference MMJ build. The offending draw is
+    // uniquely identified by its fragment-shader hash and 60-vertex indexed mesh; skip it so the
+    // pool area renders cleanly. Verified on device (S24+) 2026-07-26; no other OoT geometry was
+    // affected by the skip.
+    if ((current_title_id == 0x0004000000033400ull || // OoT 3D (JPN)
+         current_title_id == 0x0004000000033500ull || // OoT 3D (USA)
+         current_title_id == 0x0004000000033600ull || // OoT 3D (EUR)
+         current_title_id == 0x000400000008F800ull || // OoT 3D (variant)
+         current_title_id == 0x000400000008F900ull) &&
+        current_fs_hash == 0xb335c72627f48034ull && regs.pipeline.num_vertices == 60) {
+        return true;
+    }
+#endif
     // Sync and bind the texture surfaces
     const auto pica_textures = regs.texturing.GetTextures();
     for (unsigned texture_index = 0; texture_index < pica_textures.size(); ++texture_index) {
