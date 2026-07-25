@@ -685,6 +685,29 @@ bool RasterizerOpenGL::Draw(bool accelerate, bool is_indexed) {
     const u64 current_title_id = GetCurrentTitleId();
     const u32 current_depth_addr =
         static_cast<u32>(regs.framebuffer.framebuffer.GetDepthBufferPhysicalAddress());
+#ifdef ARCHITECTURE_ARM64
+    // The Legend of Zelda: Ocarina of Time 3D draws a reflection/effect surface over the forest
+    // pool (Sacred Forest Meadow) as a 60-vertex mesh that samples the pool's water texture at VRAM
+    // address 0x180fad00. On this Android GLES build that surface renders as a large opaque black
+    // quad over the ground when Link crosses a proximity trigger; it is absent on the reference MMJ
+    // build (identical renderer source, so the divergence is in the driver/runtime, not the shader
+    // code). The exact fragment shader changes with time-of-day lighting, so an fs-hash match is
+    // not stable; the sampled water texture is the invariant. Skip the two draws that make up the
+    // pool surface (60 vertices sampling 0x180fad00). Verified on device (S24+): only the pool
+    // surface is skipped — the other 60-vertex meshes in the area (grass, props) are untouched and
+    // the scene renders complete.
+    if (current_title_id == 0x0004000000033400ull || current_title_id == 0x0004000000033500ull ||
+        current_title_id == 0x0004000000033600ull || current_title_id == 0x000400000008F800ull ||
+        current_title_id == 0x000400000008F900ull) {
+        if (regs.pipeline.num_vertices == 60) {
+            const auto& oot_t0 = regs.texturing.GetTextures()[0];
+            if (oot_t0.enabled &&
+                static_cast<u32>(oot_t0.config.GetPhysicalAddress()) == 0x180fad00u) {
+                return true;
+            }
+        }
+    }
+#endif
     // Sync and bind the texture surfaces
     const auto pica_textures = regs.texturing.GetTextures();
     for (unsigned texture_index = 0; texture_index < pica_textures.size(); ++texture_index) {
