@@ -4,8 +4,10 @@
 
 #pragma once
 
+#include <array>
 #include <chrono>
 #include <cstddef>
+#include <mutex>
 #include "common/common_types.h"
 #include "common/thread.h"
 
@@ -73,6 +75,26 @@ private:
     Clock::time_point previous_frame_end = reset_point;
     /// Total visible duration (including frame-limiting, etc.) of the previous system frame
     Clock::duration previous_frame_length = Clock::duration::zero();
+
+    /**
+     * Frame-boundary-aligned samples for the rolling SPD/VPS estimates. Guest time advances in
+     * bursts within a frame (limiter sleep batches ahead of heavy frames), so an estimate taken
+     * over an arbitrary wall-clock window quantizes that staircase into several percent of
+     * apparent speed noise. Estimates whose endpoints are frame boundaries cancel it exactly.
+     */
+    static constexpr std::size_t FRAME_SAMPLE_RING_SIZE = 128;
+    struct FrameSample {
+        Clock::time_point wall{};
+        std::chrono::microseconds guest{};
+    };
+    std::array<FrameSample, FRAME_SAMPLE_RING_SIZE> frame_sample_ring{};
+    std::size_t frame_sample_head = 0;
+    std::size_t frame_sample_count = 0;
+    std::array<Clock::time_point, FRAME_SAMPLE_RING_SIZE> game_sample_ring{};
+    std::size_t game_sample_head = 0;
+    std::size_t game_sample_count = 0;
+    /// Guards the sample rings (written on the emu thread, read from the render/OSD thread)
+    mutable std::mutex sample_mutex;
 };
 
 } // namespace Core

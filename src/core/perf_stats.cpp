@@ -25,10 +25,31 @@ void PerfStats::EndSystemFrame() {
     previous_frame_length = frame_end - previous_frame_end;
     previous_frame_end = frame_end;
     system_frames += 1;
+
+    const auto guest_now = System::GetInstance().CoreTiming().GetGlobalTimeUs();
+    std::scoped_lock lock{sample_mutex};
+    // A long wall gap means pause/resume or another discontinuity; restart the windows so the
+    // next estimates don't average across it.
+    if (frame_sample_count > 0) {
+        const auto& prev = frame_sample_ring[(frame_sample_head + FRAME_SAMPLE_RING_SIZE - 1) %
+                                             FRAME_SAMPLE_RING_SIZE];
+        if (frame_end - prev.wall > std::chrono::milliseconds(250)) {
+            frame_sample_count = 0;
+            game_sample_count = 0;
+        }
+    }
+    frame_sample_ring[frame_sample_head] = {frame_end, guest_now};
+    frame_sample_head = (frame_sample_head + 1) % FRAME_SAMPLE_RING_SIZE;
+    frame_sample_count = std::min(frame_sample_count + 1, FRAME_SAMPLE_RING_SIZE);
 }
 
 void PerfStats::EndGameFrame() {
     game_frames += 1;
+
+    std::scoped_lock lock{sample_mutex};
+    game_sample_ring[game_sample_head] = Clock::now();
+    game_sample_head = (game_sample_head + 1) % FRAME_SAMPLE_RING_SIZE;
+    game_sample_count = std::min(game_sample_count + 1, FRAME_SAMPLE_RING_SIZE);
 }
 
 PerfStats::Results PerfStats::GetAndResetStats(microseconds current_system_time_us) {
@@ -41,6 +62,43 @@ PerfStats::Results PerfStats::GetAndResetStats(microseconds current_system_time_
     results.system_fps = static_cast<double>(system_frames) / interval;
     results.game_fps = static_cast<double>(game_frames) / interval;
     results.emulation_speed = system_us_per_second.count() / 1'000'000.0;
+
+    // Prefer the frame-boundary-aligned rolling estimates when enough samples exist: they are
+    // immune to the intra-frame execution staircase that makes the raw interval figures above
+    // wobble by several percent at a perfectly steady emulation speed, while still showing real
+    // slowdowns (a slow frame stays inside the ~1.5 s window until it ages out).
+    {
+        std::scoped_lock lock{sample_mutex};
+        constexpr std::size_t MAX_SYSTEM_SPANS = 90; // ~1.5 s of 60 Hz system frames
+        if (frame_sample_count >= 16) {
+            const std::size_t spans = std::min(frame_sample_count - 1, MAX_SYSTEM_SPANS);
+            const auto& newest = frame_sample_ring[(frame_sample_head + FRAME_SAMPLE_RING_SIZE -
+                                                    1) %
+                                                   FRAME_SAMPLE_RING_SIZE];
+            const auto& oldest = frame_sample_ring[(frame_sample_head + 2 * FRAME_SAMPLE_RING_SIZE -
+                                                    1 - spans) %
+                                                   FRAME_SAMPLE_RING_SIZE];
+            const double wall_s = duration_cast<DoubleSecs>(newest.wall - oldest.wall).count();
+            if (wall_s > 0.0) {
+                results.system_fps = static_cast<double>(spans) / wall_s;
+                results.emulation_speed =
+                    duration_cast<DoubleSecs>(newest.guest - oldest.guest).count() / wall_s;
+            }
+        }
+        constexpr std::size_t MAX_GAME_SPANS = 45; // ~1.5 s of 30 Hz game frames
+        if (game_sample_count >= 8) {
+            const std::size_t spans = std::min(game_sample_count - 1, MAX_GAME_SPANS);
+            const auto newest = game_sample_ring[(game_sample_head + FRAME_SAMPLE_RING_SIZE - 1) %
+                                                 FRAME_SAMPLE_RING_SIZE];
+            const auto oldest = game_sample_ring[(game_sample_head + 2 * FRAME_SAMPLE_RING_SIZE -
+                                                  1 - spans) %
+                                                 FRAME_SAMPLE_RING_SIZE];
+            const double wall_s = duration_cast<DoubleSecs>(newest - oldest).count();
+            if (wall_s > 0.0) {
+                results.game_fps = static_cast<double>(spans) / wall_s;
+            }
+        }
+    }
 
     // Reset counters
     reset_point = now;
