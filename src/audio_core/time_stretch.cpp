@@ -43,12 +43,22 @@ std::size_t TimeStretcher::Process(const s16* in, std::size_t num_in, s16* out,
         num_in = 0;
     }
 
-    // We ideally want the backlog to be about 50% full.
-    // This gives some headroom both ways to prevent underflow and overflow.
-    // We tweak current_ratio to encourage this.
-    constexpr double tweak_time_scale = 0.1; // seconds
-    const double tweak_correction = (backlog_fullness - 0.5) * (time_delta / tweak_time_scale);
-    current_ratio *= std::pow(1.0 + 2.0 * tweak_correction, tweak_correction < 0 ? 3.0 : 1.0);
+    // We ideally want the backlog to stay near 50% full, but continuously correcting toward that
+    // target turns bursty sample production (frame-limiter sleep batching) into constant audible
+    // tempo modulation. Instead, leave the tempo alone while the backlog is inside a comfortable
+    // band and only steer it back when it drifts out (dead-band controller).
+    constexpr double tweak_time_scale = 0.1;  // seconds
+    constexpr double backlog_band_low = 0.35; // no correction while inside the band
+    constexpr double backlog_band_high = 0.65;
+    if (backlog_fullness < backlog_band_low) {
+        const double tweak_correction =
+            (backlog_fullness - backlog_band_low) * (time_delta / tweak_time_scale);
+        current_ratio *= std::pow(1.0 + 2.0 * tweak_correction, 3.0);
+    } else if (backlog_fullness > backlog_band_high) {
+        const double tweak_correction =
+            (backlog_fullness - backlog_band_high) * (time_delta / tweak_time_scale);
+        current_ratio *= 1.0 + 2.0 * tweak_correction;
+    }
 
     // This low-pass filter smoothes out variance in the calculated stretch ratio.
     // The time-scale determines how responsive this filter is.
@@ -59,7 +69,11 @@ std::size_t TimeStretcher::Process(const s16* in, std::size_t num_in, s16* out,
     // Place a lower limit of 5% speed. When a game boots up, there will be
     // many silence samples. These do not need to be timestretched.
     stretch_ratio = std::max(stretch_ratio, 0.05);
-    sound_touch->setTempo(stretch_ratio);
+
+    // Snap to unity when close: micro tempo warble around 1.0 is audible while the difference in
+    // buffered duration it compensates for is not.
+    const double applied_ratio = std::abs(stretch_ratio - 1.0) < 0.02 ? 1.0 : stretch_ratio;
+    sound_touch->setTempo(applied_ratio);
 
     LOG_TRACE(Audio, "{:5}/{:5} ratio:{:0.6f} backlog:{:0.6f}", num_in, num_out, stretch_ratio,
               backlog_fullness);
